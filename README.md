@@ -80,14 +80,14 @@ Following these rules keeps the codebase clean and avoids confusion between temp
 mix phx.gen.live.module <Feature> <Name>
 ```
 
-It generates LiveView modules and templates in the correct feature-scoped directories — exactly where you want them.
+It generates LiveView modules and templates in the correct feature-scoped directories exactly where you want them.
 
-**Important**: Feature names are **case-sensitive** — always use `PascalCase`.
+**Important**: Feature names are **case-sensitive**, always use `PascalCase`.
 
 #### Location
 
 ```text
-lib/mix/tasks/phx.gen.live.module.ex
+lib/mix/tasks/phx.gen.live.module.ex (custom generator)
 ```
 
 ### Examples
