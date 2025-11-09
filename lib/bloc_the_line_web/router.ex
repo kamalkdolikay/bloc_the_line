@@ -17,7 +17,7 @@ defmodule BlocTheLineWeb.Router do
   scope "/", BlocTheLineWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", GameLive, :index
     live "/home", HomeLive, :index
     live "/game", GameLive, :index
   end
