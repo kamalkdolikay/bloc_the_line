@@ -45,31 +45,30 @@ const localHooks = {
       // Support all valid polyomino shapes (1 to 5 tiles)
       const SHAPES = [
         // size 1
-        {name: 'monomino', cells: [[0,0]]},
+        {name: '1', cells: [[0,0]]},
         // size 2
-        {name: 'domino', cells: [[0,0],[1,0]]},
+        {name: '2', cells: [[0,0],[1,0]]},
         // size 3
-        {name: 'tromino_I', cells: [[0,0],[1,0],[2,0]]},
-        {name: 'tromino_L', cells: [[0,0],[0,1],[1,1]]},
+        {name: 'I3', cells: [[0,0],[1,0],[2,0]]},
+        {name: 'V3', cells: [[0,0],[0,1],[1,1]]},
         // size 4
-        {name: 'tetromino_I', cells: [[0,0],[1,0],[2,0],[3,0]]},
-        {name: 'tetromino_O', cells: [[0,0],[1,0],[0,1],[1,1]]},
-        {name: 'tetromino_T', cells: [[0,0],[1,0],[2,0],[1,1]]},
-        {name: 'tetromino_L', cells: [[0,0],[0,1],[0,2],[1,0]]},
-        {name: 'tetromino_S', cells: [[0,0],[1,0],[1,1],[2,1]]},
+        {name: 'I4', cells: [[0,0],[1,0],[2,0],[3,0]]},
+        {name: 'O', cells: [[0,0],[1,0],[0,1],[1,1]]},
+        {name: 'T4', cells: [[0,0],[1,0],[2,0],[1,1]]},
+        {name: 'L4', cells: [[0,0],[0,1],[0,2],[1,0]]},
+        {name: 'Z4', cells: [[0,0],[1,0],[1,1],[2,1]]},
         // size 5
-        {name: 'pentomino_F', cells: [[1,0],[0,1],[1,1],[1,2],[2,2]]},
-        {name: 'pentomino_I', cells: [[0,0],[1,0],[2,0],[3,0],[4,0]]},
-        {name: 'pentomino_L', cells: [[0,0],[0,1],[0,2],[0,3],[1,0]]},
-        {name: 'pentomino_N', cells: [[0,0],[1,0],[1,1],[1,2],[2,2]]},
-        {name: 'pentomino_P', cells: [[0,0],[1,0],[0,1],[1,1],[0,2]]},
-        {name: 'pentomino_T', cells: [[0,0],[1,0],[2,0],[1,1],[1,2]]},
-        {name: 'pentomino_U', cells: [[0,0],[0,1],[1,0],[2,0],[2,1]]},
-        {name: 'pentomino_V', cells: [[0,0],[0,1],[0,2],[1,0],[2,0]]},
-        {name: 'pentomino_W', cells: [[0,0],[1,0],[1,1],[2,1],[2,2]]},
-        {name: 'pentomino_X', cells: [[1,0],[0,1],[1,1],[2,1],[1,2]]},
-        {name: 'pentomino_Y', cells: [[0,0],[1,0],[2,0],[3,0],[2,1]]},
-        {name: 'pentomino_Z', cells: [[0,0],[1,0],[1,1],[2,1],[2,2]]}
+        {name: 'F', cells: [[1,0],[0,1],[1,1],[1,2],[2,2]]},
+        {name: 'I5', cells: [[0,0],[1,0],[2,0],[3,0],[4,0]]},
+        {name: 'L5', cells: [[0,0],[0,1],[0,2],[0,3],[1,0]]},
+        {name: 'Z5', cells: [[0,0],[1,0],[1,1],[1,2],[2,2]]},
+        {name: 'P', cells: [[0,0],[1,0],[0,1],[1,1],[0,2]]},
+        {name: 'T5', cells: [[0,0],[1,0],[2,0],[1,1],[1,2]]},
+        {name: 'U', cells: [[0,0],[0,1],[1,0],[2,0],[2,1]]},
+        {name: 'V5', cells: [[0,0],[0,1],[0,2],[1,0],[2,0]]},
+        {name: 'W', cells: [[0,0],[1,0],[1,1],[2,1],[2,2]]},
+        {name: 'X', cells: [[1,0],[0,1],[1,1],[2,1],[1,2]]},
+        {name: 'Y', cells: [[0,0],[1,0],[2,0],[3,0],[2,1]]}
       ]
 
       let shapeIndex = 0
@@ -92,8 +91,7 @@ const localHooks = {
       }
 
       function rotate90(cells) {
-        // (x,y) -> (y, -x)
-        const rotated = cells.map(([x,y]) => [y, -x])
+        const rotated = cells.map(([x,y]) => [-y, x])
         return normalize(rotated)
       }
 
@@ -158,22 +156,33 @@ const localHooks = {
         else if (key === 's' || key === 'arrowdown') { row += 1; moved = true }
         else if (key === 'a' || key === 'arrowleft') { col -= 1; moved = true }
         else if (key === 'd' || key === 'arrowright') { col += 1; moved = true }
-        else if (key === 'r') { // rotate
-          oriented = rotate90(oriented)
-        }
-        else if (key === 'f') { // flip
-          oriented = flipX(oriented)
-        }
-        else if (key === ']') { // next shape
-          shapeIndex = (shapeIndex + 1) % SHAPES.length
-          oriented = normalize(SHAPES[shapeIndex].cells)
-        }
-        else if (key === '[') { // prev shape
-          shapeIndex = (shapeIndex - 1 + SHAPES.length) % SHAPES.length
-          oriented = normalize(SHAPES[shapeIndex].cells)
+        else if (key === 'r' || key === 'f' || key === ']' || key === '[') {
+          // preserve top-left anchor of the shape's bounding box so rotations
+          // and shape switches feel stable
+          const anchorRow = row
+          const anchorCol = col
+
+          if (key === 'r') {
+            oriented = rotate90(oriented)
+          } else if (key === 'f') {
+            oriented = flipX(oriented)
+          } else if (key === ']') { // next shape
+            shapeIndex = (shapeIndex + 1) % SHAPES.length
+            oriented = normalize(SHAPES[shapeIndex].cells)
+          } else if (key === '[') { // prev shape
+            shapeIndex = (shapeIndex - 1 + SHAPES.length) % SHAPES.length
+            oriented = normalize(SHAPES[shapeIndex].cells)
+          }
+
+          // for top-left anchoring we keep the same (row, col) origin
+          row = anchorRow
+          col = anchorCol
+
+          e.preventDefault()
+          renderShape()
         }
 
-        if (moved || ['r','f',']','['].includes(key)) {
+        if (moved) {
           e.preventDefault()
           renderShape()
         }
