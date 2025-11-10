@@ -1,4 +1,14 @@
 defmodule Piece do
+  @moduledoc """
+  provides the definition of a piece.
+
+  - `cells` - a MapSet of relative coordinates `{x, y}` of all parts of a block
+  - `corners` - a MapSet of the potential corner candidates
+  - `name` - identifier, mainly used for debugging with IO.inspect()
+
+  all coordinates are relative to an anchor point at `{0, 0}`,
+  which tries to be the bottom-right cell of the piece (with exceptions).
+  """
   alias Piece # avoids having to use bloc_the_line.game.Piece
 
   # name is a bit redundant but included since it will show in IO.inspect()
@@ -6,13 +16,56 @@ defmodule Piece do
   @type coordinate :: {integer(), integer()}
   @type t :: %__MODULE__{name: String.t(), cells: MapSet.t(coordinate()), corners: MapSet.t(coordinate())}
 
+  @doc """
+  rotate a piece 90 degrees around the anchor point
+  use :cw for clockwise or :ccw for counter-clockwise 
+  """
+  def rotate(%Piece{} = piece, :cw) do
+    transform(piece, fn {x, y} -> {-y, x} end)
+  end
+  
+  def rotate(%Piece{} = piece, :ccw) do
+    transform(piece, fn {x, y} -> {y, -x} end)
+  end
+  
+  @doc """
+  flip piece across an axis (:horizontal or :vertical)
+  """
+  def flip(%Piece{} = piece, :horizontal) do
+    transform(piece, fn {x, y} -> {-x, y} end)
+  end
+  
+  def flip(%Piece{} = piece, :vertical) do
+    transform(piece, fn {x, y} -> {x, -y} end)
+  end
+
+  # helper functions to avoid pipes everywhere
+  # applies the chosen rotate/flip to every pair of coordinates
+  # inside cells and corners
+  defp transform(%Piece{} = piece, transform_fn) do
+    %{piece |
+      cells: transform_coords(piece.cells, transform_fn),
+      corners: transform_coords(piece.corners, transform_fn)
+    }
+  end
+
+  defp transform_coords(mapset, transform_fn) do
+    mapset
+    |> Enum.map(transform_fn)
+    |> MapSet.new()
+  end
 end
 
 defmodule Pieces do
-  # try to anchor all pieces to the bottom right corner
+  @moduledoc"""
+  defines all game pieces via their cells and potential corners.
 
-  # X is the anchor point, it also represents a filled in cell
-  # for the 1 tile block we don't mark X 
+  try to anchor all pieces to the bottom right corner.
+
+  In each comment, X is the anchor point {0, 0}, it also represents a filled in cell.
+
+  for the 1 tile block we don't mark the anchor point.
+  """
 
   @pieces %{
 
