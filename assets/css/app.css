@@ -103,3 +103,25 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+/* Moving overlay block styles */
+.moving-block {
+  background: rgba(220, 38, 38, 0.303); /* semi-transparent red */
+  border: 2px solid rgba(139, 92, 246, 0.9);
+  box-sizing: border-box;
+  z-index: 50;
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* optional: a thin outline when using high-contrast themes */
+@media (prefers-contrast: high) {
+  .moving-block { outline: 2px solid rgba(0,0,0,0.8); }
+}
+
+/* individual tiles that make up an oriented shape */
+.moving-block-tile {
+  background: rgba(34,197,94,0.9); /* green-ish */
+  border: 1px solid rgba(0,0,0,0.35);
+  box-sizing: border-box;
+}
