@@ -26,10 +26,185 @@ import {hooks as colocatedHooks} from "phoenix-colocated/bloc_the_line"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
+
+// Local client-side hooks. MovingBlock implements a frontend-only movable overlay
+// that snaps to the tile grid and is controllable with WASD.
+const localHooks = {
+  MovingBlock: {
+    mounted() {
+      const container = this.el
+
+      // read grid size from data attributes (set server-side in the component)
+      const rows = parseInt(container.dataset.rows, 10) || 0
+      const cols = parseInt(container.dataset.cols, 10) || 0
+
+      const blockEl = container.querySelector('.moving-block')
+      const tileEl = container.querySelector('.blokus-tile')
+      if (!blockEl || !tileEl) return
+
+      // Support all valid polyomino shapes (1 to 5 tiles)
+      const SHAPES = [
+        // size 1
+        {name: 'monomino', cells: [[0,0]]},
+        // size 2
+        {name: 'domino', cells: [[0,0],[1,0]]},
+        // size 3
+        {name: 'tromino_I', cells: [[0,0],[1,0],[2,0]]},
+        {name: 'tromino_L', cells: [[0,0],[0,1],[1,1]]},
+        // size 4
+        {name: 'tetromino_I', cells: [[0,0],[1,0],[2,0],[3,0]]},
+        {name: 'tetromino_O', cells: [[0,0],[1,0],[0,1],[1,1]]},
+        {name: 'tetromino_T', cells: [[0,0],[1,0],[2,0],[1,1]]},
+        {name: 'tetromino_L', cells: [[0,0],[0,1],[0,2],[1,0]]},
+        {name: 'tetromino_S', cells: [[0,0],[1,0],[1,1],[2,1]]},
+        // size 5
+        {name: 'pentomino_F', cells: [[1,0],[0,1],[1,1],[1,2],[2,2]]},
+        {name: 'pentomino_I', cells: [[0,0],[1,0],[2,0],[3,0],[4,0]]},
+        {name: 'pentomino_L', cells: [[0,0],[0,1],[0,2],[0,3],[1,0]]},
+        {name: 'pentomino_N', cells: [[0,0],[1,0],[1,1],[1,2],[2,2]]},
+        {name: 'pentomino_P', cells: [[0,0],[1,0],[0,1],[1,1],[0,2]]},
+        {name: 'pentomino_T', cells: [[0,0],[1,0],[2,0],[1,1],[1,2]]},
+        {name: 'pentomino_U', cells: [[0,0],[0,1],[1,0],[2,0],[2,1]]},
+        {name: 'pentomino_V', cells: [[0,0],[0,1],[0,2],[1,0],[2,0]]},
+        {name: 'pentomino_W', cells: [[0,0],[1,0],[1,1],[2,1],[2,2]]},
+        {name: 'pentomino_X', cells: [[1,0],[0,1],[1,1],[2,1],[1,2]]},
+        {name: 'pentomino_Y', cells: [[0,0],[1,0],[2,0],[3,0],[2,1]]},
+        {name: 'pentomino_Z', cells: [[0,0],[1,0],[1,1],[2,1],[2,2]]}
+      ]
+
+      let shapeIndex = 0
+      // current oriented cells (normalized to min 0,0)
+      let oriented = normalize(SHAPES[shapeIndex].cells)
+
+      // position in tile coords (this is the top-left origin we place the shape at)
+      let row = parseInt(blockEl.dataset.row, 10) || 0
+      let col = parseInt(blockEl.dataset.col, 10) || 0
+
+      let tileW = 0
+      let tileH = 0
+
+      function normalize(cells) {
+        const xs = cells.map(c => c[0])
+        const ys = cells.map(c => c[1])
+        const minx = Math.min(...xs)
+        const miny = Math.min(...ys)
+        return cells.map(c => [c[0]-minx, c[1]-miny])
+      }
+
+      function rotate90(cells) {
+        // (x,y) -> (y, -x)
+        const rotated = cells.map(([x,y]) => [y, -x])
+        return normalize(rotated)
+      }
+
+      function flipX(cells) {
+        const flipped = cells.map(([x,y]) => [-x, y])
+        return normalize(flipped)
+      }
+
+      function bounds(cells) {
+        const xs = cells.map(c => c[0])
+        const ys = cells.map(c => c[1])
+        return {maxX: Math.max(...xs), maxY: Math.max(...ys)}
+      }
+
+      const renderShape = () => {
+        // compute measurements first
+        if (!tileW || !tileH) return
+        const b = bounds(oriented)
+        const shapeW = b.maxX + 1
+        const shapeH = b.maxY + 1
+
+        // clamp to board
+        row = Math.max(0, Math.min(row, Math.max(0, rows - shapeH)))
+        col = Math.max(0, Math.min(col, Math.max(0, cols - shapeW)))
+
+        blockEl.style.position = 'absolute'
+        blockEl.style.left = '0'
+        blockEl.style.top = '0'
+        blockEl.style.width = (shapeW * tileW) + 'px'
+        blockEl.style.height = (shapeH * tileH) + 'px'
+        blockEl.style.transform = `translate(${col * tileW}px, ${row * tileH}px)`
+        blockEl.style.transition = 'transform 0.04s linear'
+
+        // render tiles inside blockEl
+        blockEl.innerHTML = ''
+        oriented.forEach(([x,y]) => {
+          const t = document.createElement('div')
+          t.className = 'moving-block-tile'
+          t.style.position = 'absolute'
+          t.style.left = (x * tileW) + 'px'
+          t.style.top = (y * tileH) + 'px'
+          t.style.width = tileW + 'px'
+          t.style.height = tileH + 'px'
+          blockEl.appendChild(t)
+        })
+        blockEl.dataset.shape = SHAPES[shapeIndex].name
+      }
+
+      const measure = () => {
+        const r = tileEl.getBoundingClientRect()
+        tileW = Math.round(r.width)
+        tileH = Math.round(r.height)
+        renderShape()
+      }
+
+      // keyboard handling: WASD or arrow keys, plus shape controls
+      const keyHandler = (e) => {
+        const key = (e.key || '').toLowerCase()
+        let moved = false
+
+        if (key === 'w' || key === 'arrowup') { row -= 1; moved = true }
+        else if (key === 's' || key === 'arrowdown') { row += 1; moved = true }
+        else if (key === 'a' || key === 'arrowleft') { col -= 1; moved = true }
+        else if (key === 'd' || key === 'arrowright') { col += 1; moved = true }
+        else if (key === 'r') { // rotate
+          oriented = rotate90(oriented)
+        }
+        else if (key === 'f') { // flip
+          oriented = flipX(oriented)
+        }
+        else if (key === ']') { // next shape
+          shapeIndex = (shapeIndex + 1) % SHAPES.length
+          oriented = normalize(SHAPES[shapeIndex].cells)
+        }
+        else if (key === '[') { // prev shape
+          shapeIndex = (shapeIndex - 1 + SHAPES.length) % SHAPES.length
+          oriented = normalize(SHAPES[shapeIndex].cells)
+        }
+
+        if (moved || ['r','f',']','['].includes(key)) {
+          e.preventDefault()
+          renderShape()
+        }
+      }
+
+      // handle resize so snapping remains correct
+      const ro = new ResizeObserver(() => {
+        measure()
+      })
+      ro.observe(tileEl)
+
+      // measure initially after layout
+      requestAnimationFrame(measure)
+
+      window.addEventListener('keydown', keyHandler)
+
+      this.destroy = () => {
+        window.removeEventListener('keydown', keyHandler)
+        try { ro.disconnect() } catch (e) {}
+      }
+    },
+    destroyed() {
+      if (this.destroy) this.destroy()
+    }
+  }
+}
+
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, ...localHooks},
 })
 
 // Show progress bar on live navigation and form submits
