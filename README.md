@@ -126,7 +126,7 @@ mix deps.get
 mix phx.server
 ```
 
-### How to Play (not implemented)
+### How to Play (Lobby in progress!)
 
 1. Go to `/lobby`
 2. Click **New Game**
@@ -135,7 +135,33 @@ mix phx.server
 
 ### Contributing
 
-TBA
+We love blocks and contributors!
+
+> **Current status: Active development on `dev` branch**
+
+#### Rules for merging into main:
+
+1. All new work happens on the `dev` branch  
+2. `dev` may contain non-critical bugs during active development  
+3. **Never push directly to `main`**  
+4. To release a stable version:  
+   - Create a Pull Request from `dev` → `main`  
+   - Ensure the game is **fully playable** with **no game-breaking bugs**  
+   - At least **one other contributor** must review and approve  
+   - Run full local multiplayer test (2–4 players)  
+   - **Only then** merge into `main`
+
+```bash
+git checkout dev
+git pull origin dev
+git checkout -b feature/your-epic-idea
+# .... code .....
+git commit -m "Add epic idea"
+git push origin feature/your-epic-idea
+# Open PR: feature/your-cool-thing → dev
+# When dev is stable → create PR: dev → main
+```
+> **main** = production-ready, stable, publicly shareable
 
 ### License
 
