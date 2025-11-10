@@ -4,14 +4,12 @@ defmodule Piece do
 
   - `cells` - a MapSet of relative coordinates `{x, y}` of all parts of a block
   - `corners` - a MapSet of the potential corner candidates
-  - `name` - identifier, mainly used for debugging with IO.inspect()
+  - `name` - string identifier for each piece
 
   all coordinates are relative to an anchor point at `{0, 0}`,
   which tries to be the bottom-right cell of the piece (with exceptions).
   """
-  alias Piece # avoids having to use bloc_the_line.game.Piece
 
-  # name is a bit redundant but included since it will show in IO.inspect()
   defstruct name: nil, cells: [], corners: []
   @type coordinate :: {integer(), integer()}
   @type t :: %__MODULE__{name: String.t(), cells: MapSet.t(coordinate()), corners: MapSet.t(coordinate())}
@@ -255,4 +253,8 @@ defmodule Pieces do
       corners: MapSet.new([{-2, -2}, {-2, -1}, {0, -1}, {0, 0}]),
     }
   }
+
+  
+  def all, do: @pieces
+  def get(name), do: Map.get(@pieces, name)
 end
