@@ -20,7 +20,11 @@ defmodule Piece do
 
   defstruct name: nil, cells: [], corners: []
   @type coordinate :: {integer(), integer()}
-  @type t :: %__MODULE__{name: String.t(), cells: MapSet.t(coordinate()), corners: MapSet.t(coordinate())}
+  @type t :: %__MODULE__{
+          name: String.t(),
+          cells: MapSet.t(coordinate()),
+          corners: MapSet.t(coordinate())
+        }
 
   @doc """
   rotate a piece 90 degrees around the anchor point
@@ -29,18 +33,18 @@ defmodule Piece do
   def rotate(%Piece{} = piece, :cw) do
     transform(piece, fn {x, y} -> {-y, x} end)
   end
-  
+
   def rotate(%Piece{} = piece, :ccw) do
     transform(piece, fn {x, y} -> {y, -x} end)
   end
-  
+
   @doc """
   flip piece across an axis (:horizontal or :vertical)
   """
   def flip(%Piece{} = piece, :horizontal) do
     transform(piece, fn {x, y} -> {-x, y} end)
   end
-  
+
   def flip(%Piece{} = piece, :vertical) do
     transform(piece, fn {x, y} -> {x, -y} end)
   end
@@ -49,9 +53,10 @@ defmodule Piece do
   # applies the chosen rotate/flip to every pair of coordinates
   # inside cells and corners
   defp transform(%Piece{} = piece, transform_fn) do
-    %{piece |
-      cells: transform_coords(piece.cells, transform_fn),
-      corners: transform_coords(piece.corners, transform_fn)
+    %{
+      piece
+      | cells: transform_coords(piece.cells, transform_fn),
+        corners: transform_coords(piece.corners, transform_fn)
     }
   end
 
@@ -63,7 +68,7 @@ defmodule Piece do
 end
 
 defmodule Pieces do
-  @moduledoc"""
+  @moduledoc """
   defines all game pieces via their cells and potential corners.
 
   try to anchor all pieces to the bottom right corner.
@@ -82,45 +87,44 @@ defmodule Pieces do
   """
 
   @pieces %{
-
     # F
-    #===
-    # █
-    #██X
-    #█ 
+    # ===
+    #  █
+    # ██X
+    # █ 
     "F" => %Piece{
       name: "F",
-      cells: MapSet.new([{0, -2}, {0, -1}, {-1, -1}, {-2, 1}, {0, 0}]),
-      corners: MapSet.new([{1, -2}, {2, -1}, {0, 0}])
+      cells: MapSet.new([{-2, 0}, {-1, 0}, {-1, -1}, {-2, 1}, {0, 0}]),
+      corners: MapSet.new([{-2, 0}, {-2, 1}, {-1, -1}, {0, 0}])
     },
 
     # I
-    #===
-    #█
+    # ===
+    # █
     "1" => %Piece{
       name: "1",
       cells: MapSet.new([{0, 0}]),
       corners: MapSet.new([{0, 0}])
     },
-    #█X
+    # █X
     "2" => %Piece{
       name: "2",
       cells: MapSet.new([{-1, 0}, {0, 0}]),
       corners: MapSet.new([{-1, 0}, {0, 0}])
     },
-    #██X
+    # ██X
     "I3" => %Piece{
       name: "I3",
       cells: MapSet.new([{-2, 0}, {-1, 0}, {0, 0}]),
       corners: MapSet.new([{-2, 0}, {0, 0}])
     },
-    #███X
+    # ███X
     "I4" => %Piece{
       name: "I4",
       cells: MapSet.new([{-3, 0}, {-2, 0}, {-1, 0}, {0, 0}]),
       corners: MapSet.new([{-3, 0}, {0, 0}])
     },
-    #████X     
+    # ████X     
     "I5" => %Piece{
       name: "I5",
       cells: MapSet.new([{-4, 0}, {-3, 0}, {-2, 0}, {-1, 0}, {0, 0}]),
@@ -128,16 +132,16 @@ defmodule Pieces do
     },
 
     # L
-    #===
-    #█
-    #██X
+    # ===
+    # █
+    # ██X
     "L4" => %Piece{
       name: "L4",
       cells: MapSet.new([{0, 0}, {-1, 0}, {-2, 0}, {-2, -1}]),
       corners: MapSet.new([{0, 0}, {-2, 0}, {-2, -1}])
     },
-    #███X
-    #█
+    # ███X
+    # █
     "L5" => %Piece{
       name: "L5",
       cells: MapSet.new([{-3, -1}, {-3, 0}, {-2, 0}, {-1, 0}, {0, 0}]),
@@ -145,19 +149,19 @@ defmodule Pieces do
     },
 
     # N
-    #===
+    # ===
     # ███
-    #█X
+    # █X
     "N" => %Piece{
       name: "N",
       cells: MapSet.new([{0, -1}, {1, -1}, {2, -1}, {-1, 0}, {0, 0}]),
-      corners: MapSet.new([{0, -1}, {2, -1}, {-1, 0}, {0, 0}]),
+      corners: MapSet.new([{0, -1}, {2, -1}, {-1, 0}, {0, 0}])
     },
 
     # O
-    #===
-    #██
-    #█X
+    # ===
+    # ██
+    # █X
     "O" => %Piece{
       name: "O",
       cells: MapSet.new([{-1, -1}, {0, -1}, {-1, 0}, {0, 0}]),
@@ -165,20 +169,20 @@ defmodule Pieces do
     },
 
     # P
-    #===
-    #██
-    #█X
-    #█
+    # ===
+    # ██
+    # █X
+    # █
     "P" => %Piece{
       name: "P",
       cells: MapSet.new([{-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {0, 0}]),
-      corners: MapSet.new([{-1, 1}, {-1, -1}, {0, -1}, {0, 0}]), 
+      corners: MapSet.new([{-1, 1}, {-1, -1}, {0, -1}, {0, 0}])
     },
 
     # T
-    #===
+    # ===
     # █
-    #██X
+    # ██X
     "T4" => %Piece{
       name: "T4",
       cells: MapSet.new([{-1, -1}, {-2, 0}, {-1, 0}, {0, 0}]),
@@ -186,7 +190,7 @@ defmodule Pieces do
     },
     # █
     # █
-    #██X
+    # ██X
     "T5" => %Piece{
       name: "T5",
       cells: MapSet.new([{-1, -2}, {-1, -1}, {-2, 0}, {-1, 0}, {0, 0}]),
@@ -194,9 +198,9 @@ defmodule Pieces do
     },
 
     # U
-    #===
-    #███
-    #█ X
+    # ===
+    # ███
+    # █ X
     "U" => %Piece{
       name: "U",
       cells: MapSet.new([{-2, -1}, {-1, -1}, {0, -1}, {-2, 0}, {0, 0}]),
@@ -204,17 +208,17 @@ defmodule Pieces do
     },
 
     # V
-    #===
-    #██
+    # ===
+    # ██
     # X
     "V3" => %Piece{
       name: "V3",
       cells: MapSet.new([{-1, -1}, {0, -1}, {0, 0}]),
       corners: MapSet.new([{-1, -1}, {0, -1}, {-1, 0}])
     },
-    #█
-    #█
-    #██X
+    # █
+    # █
+    # ██X
     "V5" => %Piece{
       name: "V5",
       cells: MapSet.new([{-2, -2}, {-2, -1}, {-2, 0}, {-1, 0}, {0, 0}]),
@@ -222,9 +226,9 @@ defmodule Pieces do
     },
 
     # W
-    #===
-    #█
-    #██
+    # ===
+    # █
+    # ██
     # █X
     "W" => %Piece{
       name: "W",
@@ -232,45 +236,46 @@ defmodule Pieces do
       corners: MapSet.new([{-2, -2}, {-2, -1}, {-1, -1}, {-1, 0}, {0, 0}])
     },
     # X
-    #===
+    # ===
     # █
-    #███
+    # ███
     # X
     "X" => %Piece{
-      cells: MapSet.new([{0, -2}, {1, -1},{0, -1},{-1, -1}, {0, 0}]),
-      corners: MapSet.new([{0, -2}, {1, -1},{-1, -1}, {0, 0}]), 
+      name: "X",
+      cells: MapSet.new([{0, -2}, {1, -1}, {0, -1}, {-1, -1}, {0, 0}]),
+      corners: MapSet.new([{0, -2}, {1, -1}, {-1, -1}, {0, 0}])
     },
 
     # Y
-    #===
-    #████     
+    # ===
+    # ████     
     # X     
     "Y" => %Piece{
-      cells: MapSet.new([{2, -1}, {1, -1},{0, -1},{-1, -1}, {0, 0}]),
-      corners: MapSet.new([{-1, -1}, {2, -1}, {0, 0}]),
+      name: "Y",
+      cells: MapSet.new([{2, -1}, {1, -1}, {0, -1}, {-1, -1}, {0, 0}]),
+      corners: MapSet.new([{-1, -1}, {2, -1}, {0, 0}])
     },
 
     # Z
-    #===
-    #█
-    #██
+    # ===
+    # █
+    # ██
     # X
     "Z4" => %Piece{
       name: "Z4",
       cells: MapSet.new([{-1, -2}, {-1, -1}, {0, -1}, {0, 0}]),
-      corners: MapSet.new([{-1, -2}, {-1, -1}, {0, -1}, {0, 0}]),
+      corners: MapSet.new([{-1, -2}, {-1, -1}, {0, -1}, {0, 0}])
     },
-    #█
-    #███
+    # █
+    # ███
     #  X
     "Z5" => %Piece{
       name: "Z5",
       cells: MapSet.new([{-2, -2}, {-2, -1}, {-1, -1}, {0, -1}, {0, 0}]),
-      corners: MapSet.new([{-2, -2}, {-2, -1}, {0, -1}, {0, 0}]),
+      corners: MapSet.new([{-2, -2}, {-2, -1}, {0, -1}, {0, 0}])
     }
   }
 
-  
   def all, do: @pieces
   def get(name), do: Map.get(@pieces, name)
 end
