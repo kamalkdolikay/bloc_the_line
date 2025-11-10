@@ -8,6 +8,14 @@ defmodule Piece do
 
   all coordinates are relative to an anchor point at `{0, 0}`,
   which tries to be the bottom-right cell of the piece (with exceptions).
+
+  ## Examples
+
+  # rotate or flip a piece (or both)
+  Piece.rotate(piece, :cw)
+  Piece.flip(piece, :vertical)
+
+  piece |> Piece.rotate(:ccw) |> Piece.flip(:horizontal)
   """
 
   defstruct name: nil, cells: [], corners: []
@@ -63,6 +71,14 @@ defmodule Pieces do
   In each comment, X is the anchor point {0, 0}, it also represents a filled in cell.
 
   for the 1 tile block we don't mark the anchor point.
+
+  ## Examples
+
+  # get a piece or its information:
+
+  piece = Pieces.get("L4")
+  piece.cells 
+  piece.corners
   """
 
   @pieces %{
