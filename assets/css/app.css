@@ -106,12 +106,14 @@
 
 /* Moving overlay block styles */
 .moving-block {
-  background: rgba(220, 38, 38, 0.303); /* semi-transparent red */
+  background: rgba(220, 38, 38, 0.35); /* semi-transparent red container */
   border: 2px solid rgba(139, 92, 246, 0.9);
   box-sizing: border-box;
   z-index: 50;
-  will-change: transform;
+  will-change: transform, width, height;
   pointer-events: none;
+  /* smoother transitions */
+  transition: transform 120ms cubic-bezier(.2,.8,.2,1), width 120ms cubic-bezier(.2,.8,.2,1), height 120ms cubic-bezier(.2,.8,.2,1);
 }
 
 /* optional: a thin outline when using high-contrast themes */
@@ -121,7 +123,8 @@
 
 /* individual tiles that make up an oriented shape */
 .moving-block-tile {
-  background: rgba(34,197,94,0.9); /* green-ish */
+  background: rgba(34,197,94,0.95); /* green-ish */
   border: 1px solid rgba(0,0,0,0.35);
   box-sizing: border-box;
+  transition: transform 120ms cubic-bezier(.2,.8,.2,1), opacity 120ms linear, background-color 120ms linear;
 }
