@@ -49,7 +49,7 @@ const localHooks = {
       let oriented = SHAPES[shapeIndex].cells
 
 
-      // anchor position in tile coords - this is where cell [0,0] of the piece is positioned
+      // anchor's row/col pos in tile coords
       let anchorRow = parseInt(blockEl.dataset.row, 10) || 2
       let anchorCol = parseInt(blockEl.dataset.col, 10) || 2
 
@@ -76,18 +76,20 @@ const localHooks = {
       }
 
       // force the piece to stay inside the board boundaries
-      function clampAnchorToBoard(anchorRow, anchorCol, bounds, rows, cols) {
-        // calculate the bounding box edges
-        const topLeftRow = anchorRow + bounds.minY
-        const topLeftCol = anchorCol + bounds.minX
-        const bottomRightRow = anchorRow + bounds.maxY
-        const bottomRightCol = anchorCol + bounds.maxX
+      function clampAnchorToBoard(anchorRow, anchorCol, bounds, anchor, rows, cols) {
+        const [anchorX, anchorY] = anchor
 
-        // adjust anchor if piece extends beyond board edges
-        if (topLeftRow < 0) anchorRow -= topLeftRow
-        if (topLeftCol < 0) anchorCol -= topLeftCol
-        if (bottomRightRow >= rows) anchorRow -= (bottomRightRow - rows + 1)
-        if (bottomRightCol >= cols) anchorCol -= (bottomRightCol - cols + 1)
+        // find each cell boundary on the board
+        const minBoardRow = anchorRow + (bounds.minY - anchorY)
+        const maxBoardRow = anchorRow + (bounds.maxY - anchorY)
+        const minBoardCol = anchorCol + (bounds.minX - anchorX)
+        const maxBoardCol = anchorCol + (bounds.maxX - anchorX)
+
+        // clamp all positions to the board
+        if (minBoardRow < 0) anchorRow -= minBoardRow
+        if (minBoardCol < 0) anchorCol -= minBoardCol
+        if (maxBoardRow >= rows) anchorRow -= (maxBoardRow - rows + 1)
+        if (maxBoardCol >= cols) anchorCol -= (maxBoardCol - cols + 1)
 
         return { anchorRow, anchorCol }
       }
@@ -96,23 +98,30 @@ const localHooks = {
         // compute measurements first
         if (!tileW || !tileH) return
         const b = bounds(oriented)
+        const anchor = SHAPES[shapeIndex].anchor
+
+        // convert anchor to x, y
+        const [anchorX, anchorY] = anchor
 
         // calculate the bounding box size
         const shapeW = b.maxX - b.minX + 1
         const shapeH = b.maxY - b.minY + 1
 
         // clamp anchor to keep piece on board
-        const clamped = clampAnchorToBoard(anchorRow, anchorCol, b, rows, cols)
+        const clamped = clampAnchorToBoard(anchorRow, anchorCol, b, anchor, rows, cols)
         anchorRow = clamped.anchorRow
         anchorCol = clamped.anchorCol
 
-        // anchor point's pixel position (stay fixed during rotation)
-        const anchorPixelX = anchorCol * tileW
-        const anchorPixelY = anchorRow * tileH
+        // get anchor board position
+        const anchorCellRow = anchorRow
+        const anchorCellCol = anchorCol
 
-        // offset bounding box by the piece's min coordinates (which are often negative)
-        const boxPixelX = anchorPixelX + (b.minX * tileW)
-        const boxPixelY = anchorPixelY + (b.minY * tileH)
+        // convert anchor to pixel position
+        const anchorPixelX = anchorCellCol * tileW
+        const anchorPixelY = anchorCellRow * tileH
+
+        const boxPixelX = anchorPixelX - (anchorX - b.minX) * tileW
+        const boxPixelY = anchorPixelY - (anchorY - b.minY) * tileH
 
         blockEl.style.position = 'absolute'
         blockEl.style.left = '0'
@@ -136,7 +145,7 @@ const localHooks = {
           t.style.height = tileH + 'px'
           blockEl.appendChild(t)
 
-          if (x === 0 && y === 0) {
+          if (x === anchorX && y === anchorY) {
             const dot = document.createElement('div')
             dot.className = 'anchor-dot'
             dot.style.position = 'absolute'
@@ -178,9 +187,13 @@ const localHooks = {
           e.preventDefault()
           this.pushEvent("rotate_piece", {
             cells: oriented,
+            corners: SHAPES[shapeIndex].corners || [],
+            anchor: SHAPES[shapeIndex].anchor,
             direction: "cw"
           }, (reply) => {
             oriented = reply.cells
+            SHAPES[shapeIndex].corners = reply.corners
+            SHAPES[shapeIndex].anchor = reply.anchor
             renderShape(false)  // false = no transition
           })
           return
@@ -189,9 +202,13 @@ const localHooks = {
           e.preventDefault()
           this.pushEvent("rotate_piece", {
             cells: oriented,
+            corners: SHAPES[shapeIndex].corners || [],
+            anchor: SHAPES[shapeIndex].anchor,
             direction: "ccw"
           }, (reply) => {
             oriented = reply.cells
+            SHAPES[shapeIndex].corners = reply.corners
+            SHAPES[shapeIndex].anchor = reply.anchor
             renderShape(false)  // false = no transition
           })
           return
@@ -201,9 +218,13 @@ const localHooks = {
           blockEl.style.transition = 'none'
           this.pushEvent("flip_piece", {
             cells: oriented,
+            corners: SHAPES[shapeIndex].corners || [],
+            anchor: SHAPES[shapeIndex].anchor,
             axis: "horizontal"
           }, (reply) => {
             oriented = reply.cells
+            SHAPES[shapeIndex].corners = reply.corners
+            SHAPES[shapeIndex].anchor = reply.anchor
             renderShape()
           })
           return
@@ -213,9 +234,13 @@ const localHooks = {
           blockEl.style.transition = 'none'
           this.pushEvent("flip_piece", {
             cells: oriented,
+            corners: SHAPES[shapeIndex].corners || [],
+            anchor: SHAPES[shapeIndex].anchor,
             axis: "vertical"
           }, (reply) => {
             oriented = reply.cells
+            SHAPES[shapeIndex].corners = reply.corners
+            SHAPES[shapeIndex].anchor = reply.anchor
             renderShape()
           })
           return
@@ -223,10 +248,14 @@ const localHooks = {
         else if (key === ']') { // next shape
           shapeIndex = (shapeIndex + 1) % SHAPES.length
           oriented = SHAPES[shapeIndex].cells
+
+          console.log("Switched to:", SHAPES[shapeIndex].name, "Anchor:", SHAPES[shapeIndex].anchor)
         }
         else if (key === '[') { // prev shape
           shapeIndex = (shapeIndex - 1 + SHAPES.length) % SHAPES.length
           oriented = SHAPES[shapeIndex].cells
+
+          console.log("Switched to:", SHAPES[shapeIndex].name, "Anchor:", SHAPES[shapeIndex].anchor)
         }
 
         if (moved || [']', '['].includes(key)) {
