@@ -128,3 +128,10 @@
   box-sizing: border-box;
   transition: transform 120ms cubic-bezier(.2,.8,.2,1), opacity 120ms linear, background-color 120ms linear;
 }
+
+/* Timer display styles */
+.timer-display {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #174caf;
+}
