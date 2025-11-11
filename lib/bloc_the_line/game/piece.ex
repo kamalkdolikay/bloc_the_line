@@ -32,22 +32,62 @@ defmodule Piece do
   use :cw for clockwise or :ccw for counter-clockwise 
   """
   def rotate(%Piece{} = piece, :cw) do
-    transform(piece, fn {x, y} -> {-y, x} end)
+    {ax, ay} = piece.anchor
+
+    transform(piece, fn {x, y} ->
+      # translate to origin coordinates
+      rel_x = x - ax
+      rel_y = y - ay
+      # now rotate
+      new_x = -rel_y
+      new_y = rel_x
+      # translate back
+      {new_x + ax, new_y + ay}
+    end)
   end
 
   def rotate(%Piece{} = piece, :ccw) do
-    transform(piece, fn {x, y} -> {y, -x} end)
+    {ax, ay} = piece.anchor
+
+    transform(piece, fn {x, y} ->
+      # translate to origin coordinates
+      rel_x = x - ax
+      rel_y = y - ay
+      # rotate
+      new_x = rel_y
+      new_y = -rel_x
+      # translate back
+      {new_x + ax, new_y + ay}
+    end)
   end
 
   @doc """
   flip piece across an axis (:horizontal or :vertical)
   """
   def flip(%Piece{} = piece, :horizontal) do
-    transform(piece, fn {x, y} -> {-x, y} end)
+    {ax, ay} = piece.anchor
+
+    transform(piece, fn {x, y} ->
+      rel_x = x - ax
+      rel_y = y - ay
+      # negate x to flip horizontally
+      new_x = -rel_x
+      new_y = rel_y
+      {new_x + ax, new_y + ay}
+    end)
   end
 
   def flip(%Piece{} = piece, :vertical) do
-    transform(piece, fn {x, y} -> {x, -y} end)
+    {ax, ay} = piece.anchor
+
+    transform(piece, fn {x, y} ->
+      rel_x = x - ax
+      rel_y = y - ay
+      # negate y to flip vertically
+      new_x = rel_x
+      new_y = -rel_y
+      {new_x + ax, new_y + ay}
+    end)
   end
 
   # helper functions to avoid pipes everywhere
