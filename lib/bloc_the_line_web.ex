@@ -52,6 +52,7 @@ defmodule BlocTheLineWeb do
     quote do
       use Phoenix.LiveView
       import BlocTheLineWeb.BlokusBoard
+      import BlocTheLineWeb.Navbar
 
       unquote(html_helpers())
     end
