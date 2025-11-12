@@ -68,4 +68,24 @@ defmodule Board do
     Map.fetch(board.board_map, coord)
   end
 
+  # PRIVATE HELPER FUNCTIONS
+
+  defp check_coord(%Board{} = board, coord, player) do
+    # not Map.has_key?(board.board_map, coord)
+  end
+
+  defp coord_add({x1, y1}, {x2, y2}) do {x1 + x2, y1 + y2} end
+
+  defp adjacent({x, y} = coord) do
+    Enum.map(@adj_coord, &coord_add(&1, coord))
+  end
+
+  defp diagonal({x, y} = coord) do
+    Enum.map(@diag_coord, &coord_add(&1, coord))
+  end
+
+  defp corners(%Board{} = board) do
+    [{0, 0}, {0, board.height}, {board.width, 0}, {board.width, board.height}]
+  end
+
 end
