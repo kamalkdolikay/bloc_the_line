@@ -29,6 +29,9 @@ defmodule Board do
     board_map: board_map()
   }
 
+  @diag_coord [{1, 1}, {1, -1}, {-1, 1}, {-1, -1}]
+  @adj_coord [{0, 1}, {0, -1}, {1, 1}, {-1, 0}]
+
   def new(width, height, player_count) do
     %Board{
       width,
@@ -38,15 +41,15 @@ defmodule Board do
     }
   end
 
-  def can_place?(%Board{} = board, %Piece{} = piece, {x, y} = coord, player) do
+  def can_place?(%Board{} = board, %Piece{} = piece, coord, player) do
     moved_piece = Piece.transform(piece, &coord_add(&1, coord))
     # TODO
   end
 
-  def add_piece(%Board{} = board, %Piece{} = piece, {x, y} = coord, player) do
+  def add_piece(%Board{} = board, %Piece{} = piece, coord, player) do
     if can_place?(board, piece, coord, player) do
       moved_piece = Piece.transform(piece, &coord_add(&1, coord))
-      %Board{
+      {:ok, %Board{
         board
         | board_map: Enum.reduce(moved_piece.cells, board.board_map,
             &Map.put(&2, &1, player)
@@ -55,10 +58,14 @@ defmodule Board do
             #   Map.put(acc_board_map, piece_part, player)
             # end
           )
-      }
+      }}
     else
-      board
+      {:err, board}
     end
+  end
+
+  def get_player_from_coord(%Board{} = board, coord) do
+    Map.fetch(board.board_map, coord)
   end
 
 end
