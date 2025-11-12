@@ -51,8 +51,9 @@ defmodule BlocTheLineWeb do
   def live_view do
     quote do
       use Phoenix.LiveView
-      import BlocTheLineWeb.BlokusBoard
       import BlocTheLineWeb.Navbar
+      import BlocTheLineWeb.PlayerCard
+      import BlocTheLineWeb.BlokusBoard
 
       unquote(html_helpers())
     end
