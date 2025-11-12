@@ -19,8 +19,8 @@ defmodule Board do
   defstruct [:width, :height, :player_count, :board_map]
 
   @type coordinate :: {integer(), integer()}
-  @type board_entry :: :p1 | :p2 | :p3 | :p4
-  @type board_map :: map(coordinate(), board_entry())
+  @type player() :: :p1 | :p2 | :p3 | :p4
+  @type board_map :: map(coordinate(), player())
 
   @type t :: %__MODULE__ {
     width: integer(),
@@ -29,9 +29,15 @@ defmodule Board do
     board_map: board_map()
   }
 
+  # List of referential points used to calculated points diagonal to a coordinate.
+  # E.g. {x + 1, y + 1} is at the diagonal of {x, y}
   @diag_coord [{1, 1}, {1, -1}, {-1, 1}, {-1, -1}]
+
+  # List of referential points used to calculated points adjacent to a coordinate.
+  # E.g. {x + 0, y + 1} is adjacent of {x, y}
   @adj_coord [{0, 1}, {0, -1}, {1, 1}, {-1, 0}]
 
+  @spec new(integer(), integer(), 2..4) :: Board.t()
   def new(width, height, player_count) do
     %Board{
       width,
@@ -41,12 +47,14 @@ defmodule Board do
     }
   end
 
-  def can_place?(%Board{} = board, %Piece{} = piece, coord, player) do
+  @spec can_place(Board.t(), Piece.t(), coordinate(), player()) :: boolean()
+  def can_place?(board, piece, coord, player) do
     moved_piece = Piece.transform(piece, &coord_add(&1, coord))
     # TODO
   end
 
-  def add_piece(%Board{} = board, %Piece{} = piece, coord, player) do
+  @spec add_piece(Board.t(), Piece.t(), coordinate(), player()) :: Board.t()
+  def add_piece(board, piece, coord, player) do
     if can_place?(board, piece, coord, player) do
       moved_piece = Piece.transform(piece, &coord_add(&1, coord))
       {:ok, %Board{
@@ -64,27 +72,37 @@ defmodule Board do
     end
   end
 
-  def get_player_from_coord(%Board{} = board, coord) do
+  @spec get_player_from_coord(Board.t(), coordinate()) :: player()
+  def get_player_from_coord(board, coord) do
     Map.fetch(board.board_map, coord)
   end
 
   # PRIVATE HELPER FUNCTIONS
 
-  defp check_coord(%Board{} = board, coord, player) do
-    # not Map.has_key?(board.board_map, coord)
-  end
-
+  @spec coord_add(coordinate(), coordinate()) :: coordinate()
   defp coord_add({x1, y1}, {x2, y2}) do {x1 + x2, y1 + y2} end
 
+  @spec adjacent(coordinate()) :: list(coordinate())
   defp adjacent({x, y} = coord) do
+    @doc """
+    Returns the coordinates adjacent to an origin coordinate.
+    """
     Enum.map(@adj_coord, &coord_add(&1, coord))
   end
 
+  @spec diagonal(coordinate()) :: list(coordinate())
   defp diagonal({x, y} = coord) do
+    @doc """
+    Returns the coordinates diagonal to an origin coordinate.
+    """
     Enum.map(@diag_coord, &coord_add(&1, coord))
   end
 
+  @spec corners(Board.t()) :: list(coordinate())
   defp corners(%Board{} = board) do
+    @doc """
+    Returns the coordinates of the 4 corners of a board.
+    """
     [{0, 0}, {0, board.height}, {board.width, 0}, {board.width, board.height}]
   end
 
