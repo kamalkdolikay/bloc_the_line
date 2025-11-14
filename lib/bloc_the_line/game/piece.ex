@@ -335,6 +335,83 @@ defmodule Pieces do
     }
   }
 
+  @ordered_piece_names [
+    "F",
+    "1",
+    "2",
+    "I3",
+    "I4",
+    "I5",
+    "L4",
+    "L5",
+    "N",
+    "O",
+    "P",
+    "T4",
+    "T5",
+    "U",
+    "V3",
+    "V5",
+    "W",
+    "X",
+    "Y",
+    "Z4",
+    "Z5"
+  ]
+
+  @x_piece_name "X"
+
+  @doc """
+  Returns the names of all pieces in order, including the X piece.
+
+  Used when rotating through the full set of pieces (including X piece).
+  """
+  def piece_names do
+    @ordered_piece_names
+  end
+
+  @doc """
+  Returns the names of pieces that should be available at the start of the game.
+
+  This excludes the X piece so that it cannot be selected at the start.
+  """
+  def starting_piece_names do
+    Enum.reject(@ordered_piece_names, &(&1 == @x_piece_name))
+  end
+
+  @doc """
+  Returns all pieces in rotation order as %Piece{} structs (including X piece).
+  """
+  def piece_list do
+    @ordered_piece_names
+    |> Enum.map(&get/1)
+  end
+
+  @doc """
+  Returns the starting set of pieces as %Piece{} structs, excluding the X piece.
+  """
+  def starting_pieces do
+    starting_piece_names()
+    |> Enum.map(&get/1)
+  end
+
+  @doc """
+  Given a current piece name, returns the next piece name in the rotation list.
+
+  Wraps around to the first piece when called on the last one.
+  If the current name is not found, it defaults to the first piece.
+  """
+  def next_piece_name(current_name) do
+    case Enum.find_index(@ordered_piece_names, &(&1 == current_name)) do
+      nil ->
+        hd(@ordered_piece_names)
+
+      idx ->
+        next_index = rem(idx + 1, length(@ordered_piece_names))
+        Enum.at(@ordered_piece_names, next_index)
+    end
+  end
+
   def all, do: @pieces
   def get(name), do: Map.get(@pieces, name)
 end
