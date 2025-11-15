@@ -29,7 +29,7 @@ defmodule Piece do
 
   @doc """
   rotate a piece 90 degrees around the anchor point
-  use :cw for clockwise or :ccw for counter-clockwise 
+  use :cw for clockwise or :ccw for counter-clockwise
   """
   def rotate(%Piece{} = piece, :cw) do
     {ax, ay} = piece.anchor
@@ -93,7 +93,7 @@ defmodule Piece do
   # helper functions to avoid pipes everywhere
   # applies the chosen rotate/flip to every pair of coordinates
   # inside cells and corners
-  defp transform(%Piece{} = piece, transform_fn) do
+  def transform(%Piece{} = piece, transform_fn) do
     %{
       piece
       | cells: transform_coords(piece.cells, transform_fn),
@@ -123,7 +123,7 @@ defmodule Pieces do
   # get a piece or its information:
 
   piece = Pieces.get("L4")
-  piece.cells 
+  piece.cells
   piece.corners
   piece.anchor
   """
@@ -133,7 +133,7 @@ defmodule Pieces do
     # ===
     #  █
     # █X█
-    # █ 
+    # █
     "F" => %Piece{
       name: "F",
       cells: MapSet.new([{1, 0}, {0, 1}, {1, 1}, {2, 1}, {0, 2}]),
@@ -169,7 +169,7 @@ defmodule Pieces do
       corners: MapSet.new([{0, 0}, {3, 0}]),
       anchor: {1, 0}
     },
-    # ██X██     
+    # ██X██
     "I5" => %Piece{
       name: "I5",
       cells: MapSet.new([{0, 0}, {1, 0}, {2, 0}, {3, 0}, {4, 0}]),
@@ -305,8 +305,8 @@ defmodule Pieces do
 
     # Y
     # ===
-    # █X██    
-    #  █    
+    # █X██
+    #  █
     "Y" => %Piece{
       name: "Y",
       cells: MapSet.new([{0, 0}, {1, 0}, {2, 0}, {3, 0}, {1, 1}]),

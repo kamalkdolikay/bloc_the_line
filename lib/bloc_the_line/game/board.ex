@@ -20,7 +20,7 @@ defmodule Board do
 
   @type coordinate :: {integer(), integer()}
   @type player() :: :p1 | :p2 | :p3 | :p4
-  @type board_map :: map(coordinate(), player())
+  @type board_map :: %{coordinate() => player()}
 
   @type t :: %__MODULE__ {
     width: integer(),
@@ -40,16 +40,16 @@ defmodule Board do
   @spec new(integer(), integer(), 2..4) :: Board.t()
   def new(width, height, player_count) do
     %Board{
-      width,
-      height,
-      player_count,
+      width: width,
+      height: height,
+      player_count: player_count,
       board_map: Map.new()
     }
   end
 
-  @spec can_place(Board.t(), Piece.t(), coordinate(), player()) :: boolean()
-  def can_place?(board, piece, coord, player) do
-    moved_piece = Piece.transform(piece, &coord_add(&1, coord))
+  @spec can_place?(Board.t(), Piece.t(), coordinate(), player()) :: boolean()
+  def can_place?(_board, piece, coord, _player) do
+    _moved_piece = Piece.transform(piece, &coord_add(&1, coord))
     # TODO
   end
 
@@ -72,6 +72,11 @@ defmodule Board do
     end
   end
 
+  @doc """
+  Gets the player info from the coordinate.
+  Returns {:ok, player} if succeeds to find a place.
+  Or returns :error, if not.
+  """
   @spec get_player_from_coord(Board.t(), coordinate()) :: player()
   def get_player_from_coord(board, coord) do
     Map.fetch(board.board_map, coord)
@@ -82,27 +87,21 @@ defmodule Board do
   @spec coord_add(coordinate(), coordinate()) :: coordinate()
   defp coord_add({x1, y1}, {x2, y2}) do {x1 + x2, y1 + y2} end
 
+  # Returns the coordinates adjacent to an origin coordinate.
   @spec adjacent(coordinate()) :: list(coordinate())
-  defp adjacent({x, y} = coord) do
-    @doc """
-    Returns the coordinates adjacent to an origin coordinate.
-    """
+  defp adjacent({_, _} = coord) do
     Enum.map(@adj_coord, &coord_add(&1, coord))
   end
 
+  # Returns the coordinates diagonal to an origin coordinate.
   @spec diagonal(coordinate()) :: list(coordinate())
-  defp diagonal({x, y} = coord) do
-    @doc """
-    Returns the coordinates diagonal to an origin coordinate.
-    """
+  defp diagonal({_, _} = coord) do
     Enum.map(@diag_coord, &coord_add(&1, coord))
   end
 
+  # Returns the coordinates of the 4 corners of a board.
   @spec corners(Board.t()) :: list(coordinate())
   defp corners(%Board{} = board) do
-    @doc """
-    Returns the coordinates of the 4 corners of a board.
-    """
     [{0, 0}, {0, board.height}, {board.width, 0}, {board.width, board.height}]
   end
 
