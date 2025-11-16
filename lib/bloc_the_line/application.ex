@@ -11,9 +11,9 @@ defmodule BlocTheLine.Application do
       BlocTheLineWeb.Telemetry,
       {DNSCluster, query: Application.get_env(:bloc_the_line, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: BlocTheLine.PubSub},
-      # Start a worker by calling: BlocTheLine.Worker.start_link(arg)
-      # {BlocTheLine.Worker, arg},
-      # Start to serve requests, typically the last entry
+      {Registry, keys: :unique, name: BlocTheLine.RoomRegistry},
+      BlocTheLine.Rooms.RoomSupervisor,
+
       BlocTheLineWeb.Endpoint
     ]
 

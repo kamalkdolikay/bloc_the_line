@@ -17,9 +17,12 @@ defmodule BlocTheLineWeb.Router do
   scope "/", BlocTheLineWeb do
     pipe_through :browser
 
-    live "/", GameLive, :index
+    # root route is lobby for now
+    # live "/", GameLive, :index
+    live "/", LobbyLive, :index
     live "/home", HomeLive, :index
     live "/game", GameLive, :index
+    live "/room/:room_code", RoomLive, :index
   end
 
   # Other scopes may use custom stacks.
