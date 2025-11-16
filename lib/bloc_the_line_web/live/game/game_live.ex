@@ -1,6 +1,7 @@
 defmodule BlocTheLineWeb.GameLive do
   use BlocTheLineWeb, :live_view
 
+
   @impl true
   def mount(_params, _session, socket) do
     # Create a 20x20 empty board for demo
