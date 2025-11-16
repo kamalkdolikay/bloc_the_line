@@ -334,6 +334,33 @@ const localHooks = {
     destroyed() {
       if (this.destroy) this.destroy()
     }
+  },
+
+  Timer: {
+    mounted() {
+      let timeRemaining = parseInt(this.el.dataset.seconds, 10)
+      const timerEl = this.el.querySelector('.timer-display')
+
+      timerEl.innerHTML = ''
+      const countdown = setInterval(() => {
+        timerEl.textContent = `Time Remaining: ${timeRemaining--}s`
+
+        if (timeRemaining < 0) {
+          clearInterval(countdown)
+          timerEl.textContent = `Time's up!`
+        }
+
+      }, 1000)
+
+      // Avoid memory leaks
+      this.destroy = () => {
+        clearInterval(countdown)
+      }
+    },
+
+    destroyed() {
+      if (this.destroy) this.destroy()
+    }
   }
 }
 
