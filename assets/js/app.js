@@ -332,10 +332,10 @@ const localHooks = {
       };
     },
     destroyed() {
-      if (this.destroy) this.destroy();
-    },
-  },
-};
+      if (this.destroy) this.destroy()
+    }
+  }
+}
 
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,

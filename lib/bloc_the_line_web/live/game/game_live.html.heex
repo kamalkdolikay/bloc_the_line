@@ -1,5 +1,15 @@
 <div class="h-screen p-8 text-center flex flex-col">
   <.navbar page="Board" /> 
+  
+  <div id="timer-container" 
+    phx-hook="Timer" 
+    phx-update="ignore" 
+    data-seconds="60" 
+    aria-live="polite"
+    class="my-4"> 
+    <div class="timer-display"></div> 
+  </div>
+  
   <div class="relative flex-1 flex justify-center items-center">
     <.player_card class="absolute top-30 left-0" name="Placeholder Name"/>
     <.player_card class="absolute top-30 right-0" name="Placeholder Name"/>
@@ -16,7 +26,6 @@
       <.blokus_board board={@board} />
       
       <div class="moving-block" data-row="0" data-col="0"></div>
-
       
       <!-- leave in for use with JS measurements -->
       <div class="blokus-tile w-8 h-8" style="position: absolute; opacity: 0; pointer-events: none;">
