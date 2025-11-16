@@ -361,6 +361,19 @@ const localHooks = {
     destroyed() {
       if (this.destroy) this.destroy()
     }
+  },
+
+  CopyToClipboard: {
+    mounted() {
+      this.el.addEventListener("click", e => {
+        const text = this.el.dataset.text
+        navigator.clipboard.writeText(text).then(() => {
+          setTimeout(() => {
+            this.pushEvent("reset_copied", {})
+          }, 2000)
+        })
+      })
+    }
   }
 }
 

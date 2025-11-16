@@ -1,0 +1,64 @@
+<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+  <div style="width: 100%; max-width: 400px;">
+    <h1 style="text-align: center; font-size: 2rem; margin-bottom: 0.5rem;">Bloc the Line</h1>
+    <p style="text-align: center; margin-bottom: 1.5rem;">Blokus Multiplayer</p>
+
+    <%= if @error do %>
+      <div style="border: 1px solid #c00; padding: 0.75rem; margin-bottom: 1rem; color: red;">
+        <%= @error %>
+      </div>
+    <% end %>
+
+    <div style="margin-bottom: 2rem;">
+      <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Create New Room</h2>
+      <form phx-submit="create_room">
+        <input
+          type="text"
+          name="player_name"
+          placeholder="Your Name"
+          value={@player_name}
+          phx-change="update_player_name"
+          style="width: 100%; padding: 0.5rem; border: 1px solid #aaa; margin-bottom: 0.5rem;"
+          required
+        />
+        <button
+          type="submit"
+          style="width: 100%; padding: 0.5rem; border: 1px solid #000; background: none; cursor: pointer;"
+        >
+          Create Room
+        </button>
+      </form>
+    </div>
+
+    <div>
+      <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Join Existing Room</h2>
+      <form phx-submit="join_room">
+        <input
+          type="text"
+          name="player_name"
+          placeholder="Your Name"
+          value={@player_name}
+          phx-change="update_player_name"
+          style="width: 100%; padding: 0.5rem; border: 1px solid #aaa; margin-bottom: 0.5rem;"
+          required
+        />
+        <input
+          type="text"
+          name="room_code"
+          placeholder="Room Code"
+          value={@room_code}
+          phx-change="update_room_code"
+          style="width: 100%; padding: 0.5rem; border: 1px solid #aaa; margin-bottom: 0.5rem; text-transform: uppercase;"
+          maxlength="6"
+          required
+        />
+        <button
+          type="submit"
+          style="width: 100%; padding: 0.5rem; border: 1px solid #000; background: none; cursor: pointer;"
+        >
+          Join Room
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
