@@ -43,6 +43,10 @@ defmodule BlocTheLine.Rooms do
     end
   end
 
+  def start_game(room_code) do
+    RoomServer.start_game(room_code)
+  end
+
   # function that generates 6 digit code
   defp generate_room_code do
     :crypto.strong_rand_bytes(3)

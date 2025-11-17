@@ -22,17 +22,44 @@ defmodule BlocTheLine.Rooms.RoomServer do
     GenServer.call(via_tuple(room_code), :list_players)
   end
 
+  def start_game(room_code) do
+    GenServer.call(via_tuple(room_code), :start_game)
+  end
+
   @impl true
   def init(room_code) do
+    # Initialize a 5x5 board for the lobby phase
+    board = for _ <- 1..5, do: for(_ <- 1..5, do: 0)
+
     state = %{
       room_code: room_code,
       players: %{},
+      board: board,
       created_at: DateTime.utc_now(),
       game_started: false
     }
 
     Logger.info("Room #{room_code} created")
     {:ok, state}
+  end
+
+  @impl true
+  def handle_call(:start_game, _from, state) do
+    if state.game_started do
+      {:reply, {:error, :already_started}, state}
+    else
+      # Switch to 20x20 board for the actual game
+      new_board = for _ <- 1..20, do: for(_ <- 1..20, do: 0)
+      new_state = %{state | game_started: true, board: new_board}
+
+      Phoenix.PubSub.broadcast(
+        BlocTheLine.PubSub,
+        "room:#{state.room_code}",
+        {:game_started, new_board}
+      )
+
+      {:reply, :ok, new_state}
+    end
   end
 
   @impl true
