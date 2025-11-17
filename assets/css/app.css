@@ -135,3 +135,13 @@
   font-weight: bold;
   color: #174caf;
 }
+
+/* Piece placement animations */
+@keyframes shake {
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.piece-placed-error {
+  animation: shake 0.5s ease-in-out;
+}
