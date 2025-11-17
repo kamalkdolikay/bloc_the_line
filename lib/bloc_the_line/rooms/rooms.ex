@@ -35,6 +35,14 @@ defmodule BlocTheLine.Rooms do
     RoomServer.list_players(room_code)
   end
 
+  def place_piece(room_code, player_id, row, col, cells) do
+    RoomServer.place_piece(room_code, player_id, row, col, cells)
+  end
+
+  def get_board(room_code) do
+    RoomServer.get_board(room_code)
+  end
+
   # check if the room exists using registry lookup
   def room_exists?(room_code) do
     case Registry.lookup(BlocTheLine.RoomRegistry, room_code) do

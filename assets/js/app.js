@@ -305,6 +305,24 @@ const localHooks = {
             "Anchor:",
             SHAPES[shapeIndex].anchor
           );
+        } else if (key === " " || key === "spacebar") {
+          // handle placing the piece
+          e.preventDefault();
+          
+          const anchor = SHAPES[shapeIndex].anchor;
+          const [anchorX, anchorY] = anchor;
+          
+          console.log('Placing piece at anchor:', anchorRow, anchorCol, 'with cells:', oriented, 'anchor offset:', anchor);
+          
+          const cellsRelativeToAnchor = oriented.map(([x, y]) => [x - anchorX, y - anchorY]);
+          
+          this.pushEvent("place_piece", {
+            row: anchorRow.toString(),
+            col: anchorCol.toString(),
+            cells: cellsRelativeToAnchor
+          });
+          
+          return;
         }
 
         if (moved || ["]", "["].includes(key)) {
