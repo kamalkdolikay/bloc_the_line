@@ -17,6 +17,12 @@
           >
             <%= if @copied, do: "✓ Copied!", else: "Copy Invite Link" %>
           </button>
+          <button
+            phx-click="toggle_public"
+            style="padding: 0.5rem 1rem; border: 1px solid #000; background: none; cursor: pointer;"
+          >
+            <%= if @public, do: "Make Private", else: "Make Public" %>
+          </button>
           <.link
             navigate={~p"/"}
             style="padding: 0.5rem 1rem; border: 1px solid #000; background: none; text-decoration: none; cursor: pointer;"

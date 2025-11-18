@@ -31,6 +31,36 @@ defmodule BlocTheLine.Rooms do
     end
   end
 
+  def set_public(room_code, public) when is_boolean(public) do
+    case room_exists?(room_code) do
+      true -> RoomServer.set_public(room_code, public)
+      false -> {:error, :room_not_found}
+    end
+  end
+
+  @doc """
+  Returns a list of public rooms as maps: %{room_code: String.t(), players: [player], created_at: DateTime.t()}
+  """
+  def list_public_rooms do
+    # get all registered room keys from the Registry
+    keys = Registry.select(BlocTheLine.RoomRegistry, [{{:"$1", :_, :_}, [], [:"$1"]}])
+
+    keys
+    |> Enum.uniq()
+    |> Enum.map(&RoomServer.get_state/1)
+    |> Enum.filter(fn
+      %{} = state -> Map.get(state, :public, false)
+      _ -> false
+    end)
+    |> Enum.map(fn state ->
+      %{
+        room_code: state.room_code,
+        players: Map.values(state.players),
+        created_at: state.created_at
+      }
+    end)
+  end
+
   def list_players(room_code) do
     RoomServer.list_players(room_code)
   end
