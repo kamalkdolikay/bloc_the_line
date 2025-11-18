@@ -12,7 +12,6 @@ defmodule BlocTheLineWeb.BlokusBoard do
         <div class="flex blokus-row">
           <%= for {cell, col_index} <- Enum.with_index(row) do %>
             <div
-              phx-click="cell_click"
               phx-value-row={row_index}
               phx-value-col={col_index}
               data-row={row_index}
@@ -20,6 +19,9 @@ defmodule BlocTheLineWeb.BlokusBoard do
               class={[
                 "blokus-tile w-8 h-8 border border-gray-300 cursor-pointer",
                 cell == 1 && "bg-blue-500",
+                cell == 2 && "bg-red-500",
+                cell == 3 && "bg-green-500",
+                cell == 4 && "bg-yellow-500",
                 cell == 0 && "bg-white"
               ]}
             >

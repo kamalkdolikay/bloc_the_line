@@ -18,7 +18,28 @@ defmodule BlocTheLineWeb.RoomLive do
           {:ok, player_id} ->
             Phoenix.PubSub.subscribe(BlocTheLine.PubSub, "room:#{room_code}")
             {:ok, room_state} = Rooms.get_room(room_code)
-            board = for _ <- 1..5, do: for(_ <- 1..5, do: 0)
+
+          # Get the board from room state (not empty!)
+          board = room_state.board
+
+          # Get all pieces for the MovingBlock hook
+          pieces =
+            Pieces.all()
+            |> Enum.sort_by(fn {_key, piece} -> piece.name end)
+            |> Enum.map(fn {_key, piece} ->
+              %{
+                name: piece.name,
+                cells:
+                  piece.cells
+                  |> MapSet.to_list()
+                  |> Enum.map(fn {x, y} -> [x, y] end),
+                corners:
+                  piece.corners
+                  |> MapSet.to_list()
+                  |> Enum.map(fn {x, y} -> [x, y] end),
+                anchor: Tuple.to_list(piece.anchor)
+              }
+            end)
 
             {:ok,
              socket
@@ -28,7 +49,8 @@ defmodule BlocTheLineWeb.RoomLive do
              |> assign(:players, room_state.players)
              |> assign(:public, Map.get(room_state, :public, false))
              |> assign(:board, board)
-             |> assign(:copied, false)}
+             |> assign(:pieces, pieces)
+           |> assign(:copied, false)}
 
           {:error, :room_not_found} ->
             {:ok,
@@ -38,7 +60,16 @@ defmodule BlocTheLineWeb.RoomLive do
         end
       end
     else
-      board = for _ <- 1..5, do: for(_ <- 1..5, do: 0)
+      # Not connected yet - get board if room exists
+      board = case Rooms.room_exists?(room_code) do
+        true ->
+          case Rooms.get_room(room_code) do
+            {:ok, room_state} -> room_state.board
+            _ -> for _ <- 1..20, do: for(_ <- 1..20, do: 0)
+          end
+        false ->
+          for _ <- 1..20, do: for(_ <- 1..20, do: 0)
+      end
 
       {:ok,
        socket
@@ -47,32 +78,67 @@ defmodule BlocTheLineWeb.RoomLive do
        |> assign(:player_name, player_name)
        |> assign(:players, %{})
        |> assign(:board, board)
+       |> assign(:pieces, [])
        |> assign(:copied, false)}
     end
   end
 
-  def handle_event("cell_click", %{"row" => r, "col" => c}, socket) do
-    row = String.to_integer(r)
-    col = String.to_integer(c)
+  # Handle placing a piece (triggered by SPACE key)
+  def handle_event("place_piece", %{"row" => row_str, "col" => col_str, "cells" => cells}, socket) do
+    row = String.to_integer(row_str)
+    col = String.to_integer(col_str)
 
-    IO.inspect({row, col}, label: "Cell clicked by #{socket.assigns.player_name}")
+    IO.inspect({row, col, cells}, label: "Placing piece")
 
-    # update the board (scuffed board state)
-    board =
-      socket.assigns.board
-      |> List.update_at(row, fn row_list ->
-        List.update_at(row_list, col, fn _ -> 1 end)
-      end)
-
-    Phoenix.PubSub.broadcast(
-      BlocTheLine.PubSub,
-      "room:#{socket.assigns.room_code}",
-      {:cell_clicked, socket.assigns.player_id, row, col}
-    )
-
-    {:noreply, assign(socket, :board, board)}
+    case Rooms.place_piece(socket.assigns.room_code, socket.assigns.player_id, row, col, cells) do
+      {:ok, _new_board} ->
+        {:noreply, socket}
+      {:error, reason} ->
+        IO.inspect(reason, label: "Failed to place piece")
+        {:noreply, socket}
+    end
   end
 
+  # Handle rotate/flip events from MovingBlock hook
+  def handle_event("rotate_piece", params, socket) do
+    cells = params["cells"] |> Enum.map(&List.to_tuple/1) |> MapSet.new()
+    corners = params["corners"] |> Enum.map(&List.to_tuple/1) |> MapSet.new()
+    anchor = params["anchor"] |> List.to_tuple()
+
+    piece = %Piece{cells: cells, corners: corners, name: "temp", anchor: anchor}
+
+    rotated = case params["direction"] do
+      "cw" -> Piece.rotate(piece, :cw)
+      "ccw" -> Piece.rotate(piece, :ccw)
+    end
+
+    {:reply,
+     %{
+       cells: MapSet.to_list(rotated.cells) |> Enum.map(fn {x, y} -> [x, y] end),
+       corners: MapSet.to_list(rotated.corners) |> Enum.map(fn {x, y} -> [x, y] end),
+       anchor: Tuple.to_list(rotated.anchor)
+     }, socket}
+  end
+
+  def handle_event("flip_piece", params, socket) do
+    cells = params["cells"] |> Enum.map(&List.to_tuple/1) |> MapSet.new()
+    corners = params["corners"] |> Enum.map(&List.to_tuple/1) |> MapSet.new()
+    anchor = params["anchor"] |> List.to_tuple()
+
+    piece = %Piece{cells: cells, corners: corners, name: "temp", anchor: anchor}
+
+    flipped = case params["axis"] do
+      "horizontal" -> Piece.flip(piece, :horizontal)
+      "vertical" -> Piece.flip(piece, :vertical)
+    end
+
+    {:reply,
+     %{
+       cells: MapSet.to_list(flipped.cells) |> Enum.map(fn {x, y} -> [x, y] end),
+       corners: MapSet.to_list(flipped.corners) |> Enum.map(fn {x, y} -> [x, y] end),
+       anchor: Tuple.to_list(flipped.anchor)
+     }, socket}
+  end
 
   def handle_event("copy_link", _params, socket) do
     {:noreply, assign(socket, :copied, true)}
@@ -93,6 +159,7 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, assign(socket, :copied, false)}
   end
 
+  # Player joined/left handlers
   def handle_info({:player_joined, player}, socket) do
     {:noreply, assign(socket, :players, Map.put(socket.assigns.players, player.id, player))}
   end
@@ -105,14 +172,13 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, assign(socket, :players, Map.delete(socket.assigns.players, player.id))}
   end
 
-  def handle_info({:cell_clicked, _player_id, row, col}, socket) do
-    board =
-      socket.assigns.board
-      |> List.update_at(row, fn row_list ->
-        List.update_at(row_list, col, fn _ -> 1 end)
-      end)
-
-    {:noreply, assign(socket, :board, board)}
+  def handle_info({:piece_placed, player_id, row, col, cells, new_board}, socket) do
+    IO.inspect(player_id, label: "PIECE PLACED BY")
+    IO.inspect({row, col}, label: "AT POSITION")
+    IO.inspect(cells, label: "WITH CELLS")
+    IO.inspect(new_board, label: "NEW BOARD")
+    IO.inspect(socket.assigns.board, label: "OLD BOARD")
+    {:noreply, assign(socket, :board, new_board)}
   end
 
   def terminate(_reason, socket) do
