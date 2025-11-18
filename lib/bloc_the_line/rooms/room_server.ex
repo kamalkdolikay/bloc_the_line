@@ -22,13 +22,18 @@ defmodule BlocTheLine.Rooms.RoomServer do
     GenServer.call(via_tuple(room_code), :list_players)
   end
 
+  def set_public(room_code, public) when is_boolean(public) do
+    GenServer.call(via_tuple(room_code), {:set_public, public})
+  end
+
   @impl true
   def init(room_code) do
     state = %{
       room_code: room_code,
       players: %{},
       created_at: DateTime.utc_now(),
-      game_started: false
+      game_started: false,
+      public: false
     }
 
     Logger.info("Room #{room_code} created")
@@ -83,6 +88,28 @@ defmodule BlocTheLine.Rooms.RoomServer do
   @impl true
   def handle_call(:list_players, _from, state) do
     {:reply, Map.values(state.players), state}
+  end
+
+  @impl true
+  def handle_call({:set_public, public}, _from, state) do
+    new_state = %{state | public: public}
+
+    # Broadcast to a global topic so lobby/listeners can update
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "public_rooms",
+      {:room_public_changed, state.room_code, public}
+    )
+
+    # Also notify clients listening to the room topic
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "room:#{state.room_code}",
+      {:public_changed, public}
+    )
+
+    Logger.info("Room #{state.room_code} public=#{public}")
+    {:reply, :ok, new_state}
   end
 
   defp via_tuple(room_code) do
