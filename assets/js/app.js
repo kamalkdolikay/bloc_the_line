@@ -311,37 +311,54 @@ const localHooks = {
             "Anchor:",
             SHAPES[shapeIndex].anchor
           );
-        } else if (key === " ") {
-          // spacebar - attempt to place piece
+        } else if (key === " " || key === "spacebar") {
+          // handle placing the piece
           e.preventDefault();
-          // Failure - piece cannot be placed
-          console.log("Cannot place piece here!");
+          
+          const anchor = SHAPES[shapeIndex].anchor;
+          const [anchorX, anchorY] = anchor;
+          
+          console.log('Placing piece at anchor:', anchorRow, anchorCol, 'with cells:', oriented, 'anchor offset:', anchor);
+          
+          const cellsRelativeToAnchor = oriented.map(([x, y]) => [x - anchorX, y - anchorY]);
+          
+          const placementValid = true // TODO: actually verify with backend
+          
+          if (placementValid) {
+            this.pushEvent("place_piece", {
+              row: anchorRow.toString(),
+              col: anchorCol.toString(),
+              cells: cellsRelativeToAnchor
+            });
+          } else {
+            console.log("Cannot place piece here!");
 
-          // Hide the live moving block and create a temporary animated clone child
-          // the child will be animated to indicate error, then removed
-          // don't animate the live element directly as it will mess up positioning with translate
-          blockEl.style.visibility = "hidden";
-          blockEl.style.pointerEvents = "none";
+            // Hide the live moving block and create a temporary animated clone child
+            // the child will be animated to indicate error, then removed
+            // don't animate the live element directly as it will mess up positioning with translate
+            blockEl.style.visibility = "hidden";
+            blockEl.style.pointerEvents = "none";
 
-          const clone = blockEl.cloneNode(true);
-          blockEl.appendChild(clone);
-          clone.classList.add("piece-placed-error");
-          clone.style.visibility = "visible";
-          clone.style.position = "absolute";
-          clone.style.transform = "translate(0, 0)";
+            const clone = blockEl.cloneNode(true);
+            blockEl.appendChild(clone);
+            clone.classList.add("piece-placed-error");
+            clone.style.visibility = "visible";
+            clone.style.position = "absolute";
+            clone.style.transform = "translate(0, 0)";
 
-          // Block input while the shake/flash animation runs
-          inputBlocked = true;
+            // Block input while the shake/flash animation runs
+            inputBlocked = true;
 
-          // Remove clone and restore original after the animation ends.
-          setTimeout(() => {
-            try { clone.remove(); } catch (e) {}
-            blockEl.style.visibility = "visible";
-            blockEl.style.pointerEvents = "";
-            // Restore input after animation finishes
-            inputBlocked = false;
-          }, 500);
-
+            // Remove clone and restore original after the animation ends.
+            setTimeout(() => {
+              try { clone.remove(); } catch (e) {}
+              blockEl.style.visibility = "visible";
+              blockEl.style.pointerEvents = "";
+              // Restore input after animation finishes
+              inputBlocked = false;
+            }, 500);
+          }
+          
           return;
         }
 
