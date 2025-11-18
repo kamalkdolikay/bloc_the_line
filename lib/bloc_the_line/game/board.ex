@@ -148,6 +148,8 @@ defmodule Board do
     [{0, 0}, {0, board.height - 1}, {board.width - 1, 0}, {board.width - 1, board.height - 1}]
   end
 
+  # Checks if the piece is within the board.
+  # Returns :ok when it is within the board. Otherwise {:error, :out_of_bounds}
   @spec within_board(Board.t(), Piece.t()) :: validation_result()
   defp within_board(%Board{width: width, height: height}, %Piece{cells: cells}) do
     if Enum.all?(cells, fn {x,y} ->
@@ -162,6 +164,8 @@ defmodule Board do
     end
   end
 
+  # Checks if the piece does not overlap with other piece.
+  # Returns :ok when there is no overlap. Otherwise {:error, :overlap}
   @spec no_overlap(Board.t(), Piece.t()) :: validation_result()
   defp no_overlap(%Board{board_map: board_map}, %Piece{cells: cells}) do
     Enum.reduce_while(cells, :ok, fn coord, _acc ->
@@ -173,6 +177,8 @@ defmodule Board do
     end)
   end
 
+  # Checks if the piece is placed at the corner for first attempt.
+  # Returns :ok when it is placed at the corner. Otherwise {:error, :first_attempt_corner}
   @spec corner_placement(Board.t(), Piece.t()) :: validation_result()
   defp corner_placement(%Board{} = board, %Piece{corners: corners}) do
     board_corners = board_corners(board)
@@ -185,6 +191,8 @@ defmodule Board do
     end)
   end
 
+  # Checks if edge of the piece touch the edge of same player's piece.
+  # Returns :ok when it does not touch any edges of same player's piece. Otherwise {:error, :adjacent_edge}
   @spec no_adjacent_edge(Board.t(), Piece.t(), player()) :: validation_result()
   defp no_adjacent_edge(%Board{board_map: board_map}, %Piece{corners: corners}, player) do
     Enum.reduce_while(corners, :ok, fn corner, _acc ->
@@ -206,6 +214,8 @@ defmodule Board do
     end)
   end
 
+  # Checks if corner of the piece is connected to the corner of same player's piece.
+  # Returns :ok when at least one corner is connected. Otherwise {:error, :no_corner_connected}
   @spec corner_connected(Board.t(), Piece.t(), player()) :: validation_result()
   defp corner_connected(%Board{board_map: board_map}, %Piece{corners: corners}, player) do
     Enum.reduce_while(corners, {:error, :no_corner_connected}, fn corner, _acc ->
