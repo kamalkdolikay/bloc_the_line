@@ -56,6 +56,8 @@ const localHooks = {
 
       let tileW = 0;
       let tileH = 0;
+      // When true, all keyboard input for piece movement/rotation is ignored.
+      let inputBlocked = false;
 
       function normalize(cells) {
         const xs = cells.map((c) => c[0]);
@@ -190,6 +192,10 @@ const localHooks = {
 
       // keyboard handling: WASD or arrow keys, plus shape controls
       const keyHandler = (e) => {
+        if (inputBlocked) {
+          e.preventDefault();
+          return;
+        }
         const key = (e.key || "").toLowerCase();
         let moved = false;
 
@@ -316,11 +322,42 @@ const localHooks = {
           
           const cellsRelativeToAnchor = oriented.map(([x, y]) => [x - anchorX, y - anchorY]);
           
-          this.pushEvent("place_piece", {
-            row: anchorRow.toString(),
-            col: anchorCol.toString(),
-            cells: cellsRelativeToAnchor
-          });
+          const placementValid = true // TODO: actually verify with backend
+          
+          if (placementValid) {
+            this.pushEvent("place_piece", {
+              row: anchorRow.toString(),
+              col: anchorCol.toString(),
+              cells: cellsRelativeToAnchor
+            });
+          } else {
+            console.log("Cannot place piece here!");
+
+            // Hide the live moving block and create a temporary animated clone child
+            // the child will be animated to indicate error, then removed
+            // don't animate the live element directly as it will mess up positioning with translate
+            blockEl.style.visibility = "hidden";
+            blockEl.style.pointerEvents = "none";
+
+            const clone = blockEl.cloneNode(true);
+            blockEl.appendChild(clone);
+            clone.classList.add("piece-placed-error");
+            clone.style.visibility = "visible";
+            clone.style.position = "absolute";
+            clone.style.transform = "translate(0, 0)";
+
+            // Block input while the shake/flash animation runs
+            inputBlocked = true;
+
+            // Remove clone and restore original after the animation ends.
+            setTimeout(() => {
+              try { clone.remove(); } catch (e) {}
+              blockEl.style.visibility = "visible";
+              blockEl.style.pointerEvents = "";
+              // Restore input after animation finishes
+              inputBlocked = false;
+            }, 500);
+          }
           
           return;
         }
