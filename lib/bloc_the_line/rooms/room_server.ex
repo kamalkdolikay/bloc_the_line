@@ -67,7 +67,8 @@ defmodule BlocTheLine.Rooms.RoomServer do
       new_state =
         state
         |> put_in([:players, player_id], new_player)
-        |> Map.put(:next_player_color, rem(player_color, 4) + 1) # cycle the color
+        # cycle the color
+        |> Map.put(:next_player_color, rem(player_color, 4) + 1)
 
       Phoenix.PubSub.broadcast(
         BlocTheLine.PubSub,
@@ -75,7 +76,10 @@ defmodule BlocTheLine.Rooms.RoomServer do
         {:player_joined, new_player}
       )
 
-      Logger.info("Player #{player_name} (#{player_id}) joined room #{state.room_code} as color #{player_color}")
+      Logger.info(
+        "Player #{player_name} (#{player_id}) joined room #{state.room_code} as color #{player_color}"
+      )
+
       {:reply, {:ok, player_id}, new_state}
     end
   end
@@ -120,7 +124,10 @@ defmodule BlocTheLine.Rooms.RoomServer do
       {:piece_placed, player_id, row, col, cells, new_board}
     )
 
-    Logger.info("#{player_id} (color #{player_color}) placed piece at (#{row}, #{col}) in room #{state.room_code}")
+    Logger.info(
+      "#{player_id} (color #{player_color}) placed piece at (#{row}, #{col}) in room #{state.room_code}"
+    )
+
     {:reply, {:ok, new_board}, new_state}
   end
 
@@ -139,7 +146,8 @@ defmodule BlocTheLine.Rooms.RoomServer do
 
   defp update_board_with_piece(board, row, col, cells, player_color) do
     IO.inspect(cells, label: "DEBUG: cells being placed")
-  IO.inspect({row, col}, label: "DEBUG: anchor position")
+    IO.inspect({row, col}, label: "DEBUG: anchor position")
+
     Enum.reduce(cells, board, fn [dx, dy], acc_board ->
       target_row = row + dy
       target_col = col + dx
@@ -148,7 +156,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
 
       # checking the bounds
       if target_row >= 0 and target_row < length(acc_board) and
-         target_col >= 0 and target_col < length(Enum.at(acc_board, 0)) do
+           target_col >= 0 and target_col < length(Enum.at(acc_board, 0)) do
         List.update_at(acc_board, target_row, fn row_data ->
           List.update_at(row_data, target_col, fn _ -> player_color end)
         end)

@@ -38,5 +38,4 @@ defmodule GameTimer do
     cancel_timer(old_timer_ref)
     start_timer(duration_seconds)
   end
-
 end

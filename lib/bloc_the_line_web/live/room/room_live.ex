@@ -52,15 +52,17 @@ defmodule BlocTheLineWeb.RoomLive do
       end
     else
       # Not connected yet - get board if room exists
-      board = case Rooms.room_exists?(room_code) do
-        true ->
-          case Rooms.get_room(room_code) do
-            {:ok, room_state} -> room_state.board
-            _ -> for _ <- 1..20, do: for(_ <- 1..20, do: 0)
-          end
-        false ->
-          for _ <- 1..20, do: for(_ <- 1..20, do: 0)
-      end
+      board =
+        case Rooms.room_exists?(room_code) do
+          true ->
+            case Rooms.get_room(room_code) do
+              {:ok, room_state} -> room_state.board
+              _ -> for _ <- 1..20, do: for(_ <- 1..20, do: 0)
+            end
+
+          false ->
+            for _ <- 1..20, do: for(_ <- 1..20, do: 0)
+        end
 
       {:ok,
        socket
@@ -84,6 +86,7 @@ defmodule BlocTheLineWeb.RoomLive do
     case Rooms.place_piece(socket.assigns.room_code, socket.assigns.player_id, row, col, cells) do
       {:ok, _new_board} ->
         {:noreply, socket}
+
       {:error, reason} ->
         IO.inspect(reason, label: "Failed to place piece")
         {:noreply, socket}
@@ -98,10 +101,11 @@ defmodule BlocTheLineWeb.RoomLive do
 
     piece = %Piece{cells: cells, corners: corners, name: "temp", anchor: anchor}
 
-    rotated = case params["direction"] do
-      "cw" -> Piece.rotate(piece, :cw)
-      "ccw" -> Piece.rotate(piece, :ccw)
-    end
+    rotated =
+      case params["direction"] do
+        "cw" -> Piece.rotate(piece, :cw)
+        "ccw" -> Piece.rotate(piece, :ccw)
+      end
 
     {:reply,
      %{
@@ -118,10 +122,11 @@ defmodule BlocTheLineWeb.RoomLive do
 
     piece = %Piece{cells: cells, corners: corners, name: "temp", anchor: anchor}
 
-    flipped = case params["axis"] do
-      "horizontal" -> Piece.flip(piece, :horizontal)
-      "vertical" -> Piece.flip(piece, :vertical)
-    end
+    flipped =
+      case params["axis"] do
+        "horizontal" -> Piece.flip(piece, :horizontal)
+        "vertical" -> Piece.flip(piece, :vertical)
+      end
 
     {:reply,
      %{

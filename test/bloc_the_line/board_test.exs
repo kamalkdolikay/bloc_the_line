@@ -23,34 +23,45 @@ defmodule BlocTheLine.BoardTest do
     end
 
     test "1. fails when piece goes out of board", %{board: board, piece: piece} do
-      assert {:err, %Board{width: 10, board_map: %{}, height: 10, player_count: 1, count_map: %{}}} =
+      assert {:err,
+              %Board{width: 10, board_map: %{}, height: 10, player_count: 1, count_map: %{}}} =
                Board.add_piece(board, piece, {9, 9}, @player)
     end
 
     test "2. fails when pieces overlap",
          %{board: board, piece: piece} do
-      assert {:ok, board1} = Board.add_piece(board, piece, {0, 0}, @player) # Success
+      # Success
+      assert {:ok, board1} = Board.add_piece(board, piece, {0, 0}, @player)
 
       # Overlap
       assert {:err, _board1} = Board.add_piece(board1, piece, {0, 0}, @player)
     end
 
-    test "3. succeeds when the piece is placed at the corner on first attempt", %{board: board, piece: piece} do
-      assert {:ok, board1} = Board.add_piece(board, piece, {0, 0}, @player) # Success
+    test "3. succeeds when the piece is placed at the corner on first attempt", %{
+      board: board,
+      piece: piece
+    } do
+      # Success
+      assert {:ok, board1} = Board.add_piece(board, piece, {0, 0}, @player)
 
-      assert Map.get(board1.board_map, {0, 0}) == @player # Success
+      # Success
+      assert Map.get(board1.board_map, {0, 0}) == @player
     end
 
-    test "4. fails when the piece is not placed at the corner at first attempt", %{board: board, piece: piece} do
-      assert {:err, %Board{width: 10, board_map: %{}, height: 10, player_count: 1, count_map: %{}}} =
+    test "4. fails when the piece is not placed at the corner at first attempt", %{
+      board: board,
+      piece: piece
+    } do
+      assert {:err,
+              %Board{width: 10, board_map: %{}, height: 10, player_count: 1, count_map: %{}}} =
                Board.add_piece(board, piece, {1, 1}, @player)
     end
 
     test "5. fails when edge of the piece touch the edges of same player's piece",
          %{board: board, piece: piece} do
-      assert { :ok, _board1 } = Board.add_piece(board, piece, {0, 0}, @player)
+      assert {:ok, _board1} = Board.add_piece(board, piece, {0, 0}, @player)
 
-      assert {:err, _board1 } = Board.add_piece(board, piece, {1, 2}, @player)
+      assert {:err, _board1} = Board.add_piece(board, piece, {1, 2}, @player)
     end
 
     test "6. fails when corner of the piece is not connected to the corner of same player's piece ",

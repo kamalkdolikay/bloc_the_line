@@ -1,5 +1,4 @@
 defmodule BlocTheLine.Rooms do
-
   alias BlocTheLine.Rooms.{RoomServer, RoomSupervisor}
 
   def create_room do
@@ -7,7 +6,8 @@ defmodule BlocTheLine.Rooms do
 
     case RoomSupervisor.start_room(room_code) do
       {:ok, _pid} -> {:ok, room_code}
-      {:error, {:already_started, _pid}} -> create_room() # uses different code
+      # uses different code
+      {:error, {:already_started, _pid}} -> create_room()
       error -> error
     end
   end

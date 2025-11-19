@@ -25,20 +25,20 @@ defmodule Board do
   @type board_map :: %{coordinate() => player()}
   @type count_map :: %{player() => integer()}
   @type validation_error ::
-    :out_of_bounds
-    | :overlap
-    | :first_attempt_corner
-    | :adjacent_edge
-    | :no_corner_connected
+          :out_of_bounds
+          | :overlap
+          | :first_attempt_corner
+          | :adjacent_edge
+          | :no_corner_connected
   @type validation_result :: :ok | {:error, validation_error()}
 
-  @type t :: %__MODULE__ {
-    width: integer(),
-    height: integer(),
-    player_count: 2..4,
-    board_map: board_map(),
-    count_map: count_map()
-  }
+  @type t :: %__MODULE__{
+          width: integer(),
+          height: integer(),
+          player_count: 2..4,
+          board_map: board_map(),
+          count_map: count_map()
+        }
 
   # List of referential points used to calculated points diagonal to a coordinate.
   # E.g. {x + 1, y + 1} is at the diagonal of {x, y}
@@ -55,7 +55,7 @@ defmodule Board do
       height: height,
       player_count: player_count,
       board_map: Map.new(),
-      count_map: Map.new(),
+      count_map: Map.new()
     }
   end
 
@@ -75,21 +75,21 @@ defmodule Board do
 
     if first_attempt? do
       with :ok <- within_board(board, moved_piece),
-          :ok <- no_overlap(board, moved_piece),
-          :ok <- corner_placement(board, moved_piece) do
+           :ok <- no_overlap(board, moved_piece),
+           :ok <- corner_placement(board, moved_piece) do
         :ok
       end
     else
       with :ok <- within_board(board, moved_piece),
-          :ok <- no_overlap(board, moved_piece),
-          :ok <- no_adjacent_edge(board, moved_piece, player),
-          :ok <- corner_connected(board, moved_piece, player) do
+           :ok <- no_overlap(board, moved_piece),
+           :ok <- no_adjacent_edge(board, moved_piece, player),
+           :ok <- corner_connected(board, moved_piece, player) do
         :ok
       end
     end
   end
 
-  @doc"""
+  @doc """
   Adds piece to board.
 
   First checks if the placement is valid. If valid, update Board(Add cells of piece to board_map and increase placement count of player in count_map)
@@ -98,20 +98,22 @@ defmodule Board do
   def add_piece(board, piece, coord, player) do
     case can_place?(board, piece, coord, player) do
       :ok ->
-      moved_piece = Piece.transform(piece, &coord_add(&1, coord))
-      {:ok, %Board{
-        board
-        | board_map: Enum.reduce(moved_piece.cells, board.board_map,
-            &Map.put(&2, &1, player)),
-            # Simplified version:
-            # fn piece_part, acc_board_map ->
-            #   Map.put(acc_board_map, piece_part, player)
-            # end
-          count_map: Map.put(board.count_map, player, Map.get(board.count_map, player, 0) + 1)
-      }}
-    {:error, _reason} ->
-      # IO.inspect(reason) # For debugging
-      {:err, board}
+        moved_piece = Piece.transform(piece, &coord_add(&1, coord))
+
+        {:ok,
+         %Board{
+           board
+           | board_map: Enum.reduce(moved_piece.cells, board.board_map, &Map.put(&2, &1, player)),
+             # Simplified version:
+             # fn piece_part, acc_board_map ->
+             #   Map.put(acc_board_map, piece_part, player)
+             # end
+             count_map: Map.put(board.count_map, player, Map.get(board.count_map, player, 0) + 1)
+         }}
+
+      {:error, _reason} ->
+        # IO.inspect(reason) # For debugging
+        {:err, board}
     end
   end
 
@@ -128,7 +130,9 @@ defmodule Board do
   # PRIVATE HELPER FUNCTIONS
 
   @spec coord_add(coordinate(), coordinate()) :: coordinate()
-  defp coord_add({x1, y1}, {x2, y2}) do {x1 + x2, y1 + y2} end
+  defp coord_add({x1, y1}, {x2, y2}) do
+    {x1 + x2, y1 + y2}
+  end
 
   # Returns the coordinates adjacent to an origin coordinate.
   @spec adjacent(coordinate()) :: list(coordinate())
@@ -152,12 +156,12 @@ defmodule Board do
   # Returns :ok when it is within the board. Otherwise {:error, :out_of_bounds}
   @spec within_board(Board.t(), Piece.t()) :: validation_result()
   defp within_board(%Board{width: width, height: height}, %Piece{cells: cells}) do
-    if Enum.all?(cells, fn {x,y} ->
-      0 <= x    and
-      x < width and
-      0 <= y    and
-      y < height
-    end) do
+    if Enum.all?(cells, fn {x, y} ->
+         0 <= x and
+           x < width and
+           0 <= y and
+           y < height
+       end) do
       :ok
     else
       {:error, :out_of_bounds}
@@ -182,6 +186,7 @@ defmodule Board do
   @spec corner_placement(Board.t(), Piece.t()) :: validation_result()
   defp corner_placement(%Board{} = board, %Piece{corners: corners}) do
     board_corners = board_corners(board)
+
     Enum.reduce_while(corners, {:error, :first_attempt_corner}, fn coord, _acc ->
       if coord in board_corners do
         {:halt, :ok}
@@ -206,11 +211,11 @@ defmodule Board do
           end
         end)
 
-        if has_bad_neighbor do
-          {:halt, {:error, :adjacent_edge}}
-        else
-          {:cont, :ok}
-        end
+      if has_bad_neighbor do
+        {:halt, {:error, :adjacent_edge}}
+      else
+        {:cont, :ok}
+      end
     end)
   end
 
@@ -219,20 +224,20 @@ defmodule Board do
   @spec corner_connected(Board.t(), Piece.t(), player()) :: validation_result()
   defp corner_connected(%Board{board_map: board_map}, %Piece{corners: corners}, player) do
     Enum.reduce_while(corners, {:error, :no_corner_connected}, fn corner, _acc ->
-    diagonal_coords = diagonal(corner)
+      diagonal_coords = diagonal(corner)
 
-    has_same_player_diagonal =
-      Enum.any?(diagonal_coords, fn diagonal_coord ->
-        case Map.get(board_map, diagonal_coord) do
-          ^player -> true
-          _ -> false
-        end
-      end)
+      has_same_player_diagonal =
+        Enum.any?(diagonal_coords, fn diagonal_coord ->
+          case Map.get(board_map, diagonal_coord) do
+            ^player -> true
+            _ -> false
+          end
+        end)
 
       if has_same_player_diagonal do
-          {:halt, :ok}
+        {:halt, :ok}
       else
-          {:cont, {:error, :no_corner_connected}}
+        {:cont, {:error, :no_corner_connected}}
       end
     end)
   end
