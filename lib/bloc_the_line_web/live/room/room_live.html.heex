@@ -5,10 +5,10 @@
       <div class="flex justify-between items-center">
         <div>
           <h1 class="text-3xl font-bold text-gray-800">Room: {@room_code}</h1>
-          
+
           <p class="text-gray-600">Playing as: {@player_name}</p>
         </div>
-        
+
         <div class="flex gap-3">
           <button
             phx-click="copy_link"
@@ -28,23 +28,23 @@
         </div>
       </div>
     </div>
-    
+
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
       <!-- Players List -->
       <div class="lg:col-span-1">
         <div class="bg-white rounded-lg shadow-lg p-6">
           <h2 class="text-xl font-semibold mb-4 text-gray-800">Players ({map_size(@players)})</h2>
-          
+
           <div class="space-y-3">
             <%= for {_id, player} <- @players do %>
               <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                 <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
                   {String.first(player.name)}
                 </div>
-                
+
                 <div class="flex-1">
                   <p class="font-semibold text-gray-800">{player.name}</p>
-                  
+
                   <%= if player.id == @player_id do %>
                     <p class="text-xs text-blue-600">You</p>
                   <% end %>
@@ -58,7 +58,7 @@
       <div class="lg:col-span-3">
         <div class="bg-white rounded-lg shadow-lg p-8">
           <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">Blokus Board</h2>
-          
+
           <div
             id="moving-block-container"
             phx-hook="MovingBlock"
@@ -76,7 +76,7 @@
             >
             </div>
           </div>
-          
+
           <div class="mt-4 text-center text-sm text-gray-600">
             <p>
               Use WASD to move | R/E to rotate | F/V to flip | [ ] to change piece | SPACE to place
