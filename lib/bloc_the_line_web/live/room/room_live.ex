@@ -57,11 +57,11 @@ defmodule BlocTheLineWeb.RoomLive do
           true ->
             case Rooms.get_room(room_code) do
               {:ok, room_state} -> room_state.board
-              _ -> for _ <- 1..20, do: for(_ <- 1..20, do: 0)
+              _ -> Board.new(20, 20, 4)
             end
 
           false ->
-            for _ <- 1..20, do: for(_ <- 1..20, do: 0)
+            Board.new(20, 20, 4)
         end
 
       {:ok,
