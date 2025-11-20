@@ -1,6 +1,5 @@
 <div class="h-screen p-8 text-center flex flex-col">
   <.navbar page="Board" />
-
   <div
     id="timer-container"
     phx-hook="Timer"
@@ -26,10 +25,8 @@
       style="position: relative; display: inline-block;"
     >
       <.blokus_board board={@board} />
-
       <div class="moving-block" data-row="0" data-col="0"></div>
-      
-<!-- leave in for use with JS measurements -->
+      <!-- leave in for use with JS measurements -->
       <div
         class="blokus-tile w-8 h-8"
         style="position: absolute; opacity: 0; pointer-events: none;"

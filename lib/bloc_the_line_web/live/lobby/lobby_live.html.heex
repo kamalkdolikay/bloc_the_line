@@ -1,13 +1,13 @@
 <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem;">
   <div style="width: 100%; max-width: 400px;">
     <h1 style="text-align: center; font-size: 2rem; margin-bottom: 0.5rem;">Bloc the Line</h1>
-    
+
     <p style="text-align: center; margin-bottom: 1.5rem;">Blokus Multiplayer</p>
 
     <%= if @flash[:error] do %>
       <div role="alert" style="border:1px solid #fca5a5; background:#fff1f2; color:#991b1b; padding:0.75rem; margin-bottom:1rem; border-radius:4px;">
         <strong style="display:block; margin-bottom:0.25rem;">Error</strong>
-        <%= @flash[:error] %>
+        {@flash[:error]}
       </div>
     <% end %>
 
@@ -64,6 +64,7 @@
     
     <div style="margin-bottom: 2rem;">
       <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Create New Room</h2>
+
       
       <form phx-submit="create_room">
         <input
@@ -87,6 +88,7 @@
     
     <div>
       <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Join Existing Room</h2>
+
       
       <form phx-submit="join_room">
         <input

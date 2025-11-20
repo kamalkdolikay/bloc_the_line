@@ -83,9 +83,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
       new_state =
         state
         |> put_in([:players, player_id], new_player)
-        |> Map.put(:next_player_color, rem(player_color, 4) + 1)
-        |> put_in([:monitors, ref], player_id)
-        |> put_in([:player_refs, player_id], ref)
+        |> Map.put(:next_player_color, rem(player_color, 4) + 1) # cycle the color
 
       Phoenix.PubSub.broadcast(
         BlocTheLine.PubSub,
@@ -137,7 +135,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
   def handle_call(:get_state, _from, state) do
     {:reply, state, state}
   end
-  
+
 
   @impl true
   def handle_call(:list_players, _from, state) do
@@ -252,5 +250,5 @@ defmodule BlocTheLine.Rooms.RoomServer do
     end)
   end
 
-  
+
 end

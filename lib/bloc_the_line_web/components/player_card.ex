@@ -4,9 +4,7 @@ defmodule BlocTheLineWeb.PlayerCard do
   def player_card(assigns) do
     ~H"""
     <div class={@class}>
-      <div>
-        {@name}
-      </div>
+      <div>{@name}</div>
     </div>
     """
   end

@@ -81,16 +81,18 @@ defmodule BlocTheLineWeb.RoomLive do
       else
         # Not connected yet - get board if room exists
         board =
-          case Rooms.room_exists?(room_code) do
-            true ->
-              case Rooms.get_room(room_code) do
-                {:ok, room_state} -> room_state.board
-                _ -> for _ <- 1..20, do: for(_ <- 1..20, do: 0)
-              end
 
-            false ->
-              for _ <- 1..20, do: for(_ <- 1..20, do: 0)
-          end
+        case Rooms.room_exists?(room_code) do
+              true ->
+                case Rooms.get_room(room_code) do
+                  {:ok, room_state} -> room_state.board
+                  _ -> for _ <- 1..20, do: for(_ <- 1..20, do: 0)
+                end
+
+
+          false ->
+                for _ <- 1..20, do: for(_ <- 1..20, do: 0)
+            end
 
         {:ok,
          socket
