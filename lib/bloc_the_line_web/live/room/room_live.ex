@@ -83,16 +83,15 @@ defmodule BlocTheLineWeb.RoomLive do
         board =
 
         case Rooms.room_exists?(room_code) do
-              true ->
-                case Rooms.get_room(room_code) do
-                  {:ok, room_state} -> room_state.board
-                  _ -> for _ <- 1..20, do: for(_ <- 1..20, do: 0)
-                end
-
+          true ->
+            case Rooms.get_room(room_code) do
+              {:ok, room_state} -> room_state.board
+              _ -> Board.new(20, 20, 4)
+            end
 
           false ->
-                for _ <- 1..20, do: for(_ <- 1..20, do: 0)
-            end
+            Board.new(20, 20, 4)
+        end
 
         {:ok,
          socket
