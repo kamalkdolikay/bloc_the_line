@@ -106,8 +106,8 @@
 
 /* Moving overlay block styles */
 .moving-block {
-  background: rgba(220, 38, 38, 0.35); /* semi-transparent red container */
-  border: 2px solid rgba(139, 92, 246, 0.9);
+  /* background: rgba(220, 38, 38, 0.35); /* semi-transparent red container */
+  /* border: 2px solid rgba(139, 92, 246, 0.9);  */
   box-sizing: border-box;
   z-index: 50;
   will-change: transform, width, height;
@@ -127,6 +127,14 @@
   border: 1px solid rgba(0,0,0,0.35);
   box-sizing: border-box;
   transition: transform 120ms cubic-bezier(.2,.8,.2,1), opacity 120ms linear, background-color 120ms linear;
+}
+
+/* add box-shadow to the tiles */
+.blokus-tile.bg-blue-600,
+.blokus-tile.bg-red-600,
+.blokus-tile.bg-purple-600,
+.blokus-tile.bg-yellow-600 {
+box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Timer display styles */
