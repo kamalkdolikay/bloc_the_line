@@ -80,10 +80,16 @@ defmodule BlocTheLine.Rooms.RoomServer do
         "Monitoring pid=#{inspect(from_pid)} ref=#{inspect(ref)} for player=#{player_id}"
       )
 
+      # record the monitor ref -> player_id and player_id -> ref so we can cleanup on DOWN
+      monitors = Map.put(state.monitors, ref, player_id)
+      player_refs = Map.put(state.player_refs, player_id, ref)
+
       new_state =
         state
         |> put_in([:players, player_id], new_player)
         |> Map.put(:next_player_color, rem(player_color, 4) + 1) # cycle the color
+        |> Map.put(:monitors, monitors)
+        |> Map.put(:player_refs, player_refs)
 
       Phoenix.PubSub.broadcast(
         BlocTheLine.PubSub,
