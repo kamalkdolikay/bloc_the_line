@@ -5,7 +5,7 @@ defmodule BlocTheLineWeb.PlayerCard do
     ~H"""
     <div class={@class}>
       <div>
-        <%= @name %>
+        {@name}
       </div>
     </div>
     """

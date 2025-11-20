@@ -424,6 +424,20 @@ const localHooks = {
       })
     }
   }
+,
+
+  JoinPublic: {
+    mounted() {
+      this.el.addEventListener("click", (e) => {
+        e.preventDefault();
+        const room = this.el.dataset.roomCode || this.el.getAttribute('data-room-code')
+        // Prefer any input named player_name on the page (covers both forms)
+        const nameInput = document.querySelector('input[name="player_name"]')
+        const player_name = nameInput ? nameInput.value : ""
+        this.pushEvent("join_public", { room_code: room, player_name })
+      })
+    }
+  }
 }
 
 const liveSocket = new LiveSocket("/live", Socket, {

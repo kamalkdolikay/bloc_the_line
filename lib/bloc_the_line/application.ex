@@ -13,7 +13,6 @@ defmodule BlocTheLine.Application do
       {Phoenix.PubSub, name: BlocTheLine.PubSub},
       {Registry, keys: :unique, name: BlocTheLine.RoomRegistry},
       BlocTheLine.Rooms.RoomSupervisor,
-
       BlocTheLineWeb.Endpoint
     ]
 

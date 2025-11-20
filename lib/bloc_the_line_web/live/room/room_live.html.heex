@@ -4,8 +4,8 @@
     <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
       <div class="flex justify-between items-center">
         <div>
-          <h1 class="text-3xl font-bold text-gray-800">Room: <%= @room_code %></h1>
-          <p class="text-gray-600">Playing as: <%= @player_name %></p>
+          <h1 class="text-3xl font-bold text-gray-800">Room: {@room_code}</h1>
+          <p class="text-gray-600">Playing as: {@player_name}</p>
         </div>
         <div class="flex gap-3">
           <button
@@ -15,13 +15,13 @@
             data-text={url(~p"/room/#{@room_code}")}
             class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition"
           >
-            <%= if @copied, do: "✓ Copied!", else: "Copy Invite Link" %>
+            {if @copied, do: "✓ Copied!", else: "Copy Invite Link"}
           </button>
           <button
             phx-click="toggle_public"
-            style="padding: 0.5rem 1rem; border: 1px solid #000; background: none; cursor: pointer;"
+            class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition"
           >
-            <%= if @public, do: "Make Private", else: "Make Public" %>
+            {if @public, do: "Make Private", else: "Make Public"}
           </button>
           <.link
             navigate={~p"/"}
@@ -38,16 +38,16 @@
       <div class="lg:col-span-1">
         <div class="bg-white rounded-lg shadow-lg p-6">
           <h2 class="text-xl font-semibold mb-4 text-gray-800">
-            Players (<%= map_size(@players) %>)
+            Players ({map_size(@players)})
           </h2>
           <div class="space-y-3">
             <%= for {_id, player} <- @players do %>
               <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                 <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                  <%= String.first(player.name) %>
+                  {String.first(player.name)}
                 </div>
                 <div class="flex-1">
-                  <p class="font-semibold text-gray-800"><%= player.name %></p>
+                  <p class="font-semibold text-gray-800">{player.name}</p>
                   <%= if player.id == @player_id do %>
                     <p class="text-xs text-blue-600">You</p>
                   <% end %>
@@ -57,12 +57,12 @@
           </div>
         </div>
       </div>
-
-      <!-- Game Area -->
+      
+<!-- Game Area -->
       <div class="lg:col-span-3">
         <div class="bg-white rounded-lg shadow-lg p-8">
           <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">Blokus Board</h2>
-          
+
           <div
             id="moving-block-container"
             phx-hook="MovingBlock"
@@ -72,16 +72,21 @@
             style="position: relative; display: inline-block;"
           >
             <.blokus_board board={@board} />
-            
+
             <div class="moving-block" data-row="0" data-col="0"></div>
             
-            <!-- leave in for use with JS measurements -->
-            <div class="blokus-tile w-8 h-8" style="position: absolute; opacity: 0; pointer-events: none;">
+<!-- leave in for use with JS measurements -->
+            <div
+              class="blokus-tile w-8 h-8"
+              style="position: absolute; opacity: 0; pointer-events: none;"
+            >
             </div>
           </div>
-          
+
           <div class="mt-4 text-center text-sm text-gray-600">
-            <p>Use WASD to move | R/E to rotate | F/V to flip | [ ] to change piece | SPACE to place</p>
+            <p>
+              Use WASD to move | R/E to rotate | F/V to flip | [ ] to change piece | SPACE to place
+            </p>
           </div>
         </div>
       </div>

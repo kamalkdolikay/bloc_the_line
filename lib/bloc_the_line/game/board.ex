@@ -22,12 +22,12 @@ defmodule Board do
   @type player() :: :p1 | :p2 | :p3 | :p4
   @type board_map :: %{coordinate() => player()}
 
-  @type t :: %__MODULE__ {
-    width: integer(),
-    height: integer(),
-    player_count: 2..4,
-    board_map: board_map()
-  }
+  @type t :: %__MODULE__{
+          width: integer(),
+          height: integer(),
+          player_count: 2..4,
+          board_map: board_map()
+        }
 
   # List of referential points used to calculated points diagonal to a coordinate.
   # E.g. {x + 1, y + 1} is at the diagonal of {x, y}
@@ -57,16 +57,21 @@ defmodule Board do
   def add_piece(board, piece, coord, player) do
     if can_place?(board, piece, coord, player) do
       moved_piece = Piece.transform(piece, &coord_add(&1, coord))
-      {:ok, %Board{
-        board
-        | board_map: Enum.reduce(moved_piece.cells, board.board_map,
-            &Map.put(&2, &1, player)
-            # Simplified version:
-            # fn piece_part, acc_board_map ->
-            #   Map.put(acc_board_map, piece_part, player)
-            # end
-          )
-      }}
+
+      {:ok,
+       %Board{
+         board
+         | board_map:
+             Enum.reduce(
+               moved_piece.cells,
+               board.board_map,
+               &Map.put(&2, &1, player)
+               # Simplified version:
+               # fn piece_part, acc_board_map ->
+               #   Map.put(acc_board_map, piece_part, player)
+               # end
+             )
+       }}
     else
       {:err, board}
     end
@@ -85,7 +90,9 @@ defmodule Board do
   # PRIVATE HELPER FUNCTIONS
 
   @spec coord_add(coordinate(), coordinate()) :: coordinate()
-  defp coord_add({x1, y1}, {x2, y2}) do {x1 + x2, y1 + y2} end
+  defp coord_add({x1, y1}, {x2, y2}) do
+    {x1 + x2, y1 + y2}
+  end
 
   # Returns the coordinates adjacent to an origin coordinate.
   @spec adjacent(coordinate()) :: list(coordinate())
@@ -104,5 +111,4 @@ defmodule Board do
   defp corners(%Board{} = board) do
     [{0, 0}, {0, board.height}, {board.width, 0}, {board.width, board.height}]
   end
-
 end

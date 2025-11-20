@@ -1,5 +1,4 @@
 defmodule BlocTheLine.Rooms do
-
   alias BlocTheLine.Rooms.{RoomServer, RoomSupervisor}
 
   def create_room do
@@ -7,15 +6,25 @@ defmodule BlocTheLine.Rooms do
 
     case RoomSupervisor.start_room(room_code) do
       {:ok, _pid} -> {:ok, room_code}
-      {:error, {:already_started, _pid}} -> create_room() # uses different code
+      # uses different code
+      {:error, {:already_started, _pid}} -> create_room()
       error -> error
     end
   end
 
   def join_room(room_code, player_name) do
     case room_exists?(room_code) do
-      true -> RoomServer.join(room_code, player_name)
-      false -> {:error, :room_not_found}
+      true ->
+        RoomServer.join(room_code, player_name)
+
+      false ->
+        # Try to start the room dynamically and then join. This makes joining
+        # idempotent from the caller's perspective (no "room not found" errors).
+        case RoomSupervisor.start_room(room_code) do
+          {:ok, _pid} -> RoomServer.join(room_code, player_name)
+          {:error, {:already_started, _pid}} -> RoomServer.join(room_code, player_name)
+          _ -> {:error, :room_not_found}
+        end
     end
   end
 
