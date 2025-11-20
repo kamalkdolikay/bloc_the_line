@@ -30,6 +30,10 @@ defmodule BlocTheLine.Rooms.RoomServer do
     GenServer.call(via_tuple(room_code), :get_board)
   end
 
+  def set_public(room_code, public) when is_boolean(public) do
+    GenServer.call(via_tuple(room_code), {:set_public, public})
+  end
+
   @impl true
   def init(room_code) do
     state = %{
@@ -38,7 +42,12 @@ defmodule BlocTheLine.Rooms.RoomServer do
       board: Board.new(20, 20, 4),
       created_at: DateTime.utc_now(),
       game_started: false,
-      next_player_color: 1
+      next_player_color: 1,
+      public: false,
+      # ref => player_id
+      monitors: %{},
+      # player_id => ref
+      player_refs: %{}
     }
 
     Logger.info("Room #{room_code} created")
@@ -46,7 +55,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
   end
 
   @impl true
-  def handle_call({:join, player_name}, _from, state) do
+  def handle_call({:join, player_name}, {from_pid, _ref} = _from, state) do
     if map_size(state.players) >= 4 do
       {:reply, {:error, :room_full}, state}
     else
@@ -60,11 +69,23 @@ defmodule BlocTheLine.Rooms.RoomServer do
         joined_at: DateTime.utc_now()
       }
 
+      # Monitor the caller process so we can remove the player on disconnect
+      ref = Process.monitor(from_pid)
+
+      Logger.debug(
+        "Monitoring pid=#{inspect(from_pid)} ref=#{inspect(ref)} for player=#{player_id}"
+      )
+
+      # record the monitor ref -> player_id and player_id -> ref so we can cleanup on DOWN
+      monitors = Map.put(state.monitors, ref, player_id)
+      player_refs = Map.put(state.player_refs, player_id, ref)
+
       new_state =
         state
         |> put_in([:players, player_id], new_player)
-        # cycle the color
-        |> Map.put(:next_player_color, rem(player_color, 4) + 1)
+        |> Map.put(:next_player_color, rem(player_color, 4) + 1) # cycle the color
+        |> Map.put(:monitors, monitors)
+        |> Map.put(:player_refs, player_refs)
 
       Phoenix.PubSub.broadcast(
         BlocTheLine.PubSub,
@@ -83,7 +104,21 @@ defmodule BlocTheLine.Rooms.RoomServer do
   @impl true
   def handle_call({:leave, player_id}, _from, state) do
     {player, new_players} = Map.pop(state.players, player_id)
-    new_state = %{state | players: new_players}
+    # demonitor if we were tracking this player
+    {ref, player_refs} = Map.pop(state.player_refs, player_id)
+    monitors = if ref, do: Map.delete(state.monitors, ref), else: state.monitors
+
+    if ref do
+      Logger.debug("Demonitoring ref=#{inspect(ref)} for player=#{player_id}")
+
+      try do
+        Process.demonitor(ref, [:flush])
+      rescue
+        _ -> :ok
+      end
+    end
+
+    new_state = %{state | players: new_players, monitors: monitors, player_refs: player_refs}
 
     if player do
       Phoenix.PubSub.broadcast(
@@ -102,6 +137,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
   def handle_call(:get_state, _from, state) do
     {:reply, state, state}
   end
+
 
   @impl true
   def handle_call(:list_players, _from, state) do
@@ -147,6 +183,60 @@ defmodule BlocTheLine.Rooms.RoomServer do
     {:reply, state.board, state}
   end
 
+  @impl true
+  def handle_call({:set_public, public}, _from, state) do
+    new_state = %{state | public: public}
+
+    # Broadcast to a global topic so lobby/listeners can update
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "public_rooms",
+      {:room_public_changed, state.room_code, public}
+    )
+
+    # Also notify clients listening to the room topic
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "room:#{state.room_code}",
+      {:public_changed, public}
+    )
+
+    Logger.info("Room #{state.room_code} public=#{public}")
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
+  def handle_info({:DOWN, ref, :process, _pid, _reason}, state) do
+    case Map.pop(state.monitors, ref) do
+      {nil, _monitors} ->
+        {:noreply, state}
+
+      {player_id, monitors} ->
+        # remove player_refs entry
+        {_, player_refs} = Map.pop(state.player_refs, player_id)
+
+        {player, new_players} = Map.pop(state.players, player_id)
+
+        Logger.debug(
+          "Received DOWN for ref=#{inspect(ref)} removing player_id=#{inspect(player_id)} player=#{inspect(player && player.name)}"
+        )
+
+        new_state = %{state | players: new_players, monitors: monitors, player_refs: player_refs}
+
+        if player do
+          Phoenix.PubSub.broadcast(
+            BlocTheLine.PubSub,
+            "room:#{state.room_code}",
+            {:player_left, player}
+          )
+
+          Logger.info("Player #{player.name} left room #{state.room_code} (disconnect)")
+        end
+
+        {:noreply, new_state}
+    end
+  end
+
   defp via_tuple(room_code) do
     {:via, Registry, {BlocTheLine.RoomRegistry, room_code}}
   end
@@ -175,4 +265,6 @@ defmodule BlocTheLine.Rooms.RoomServer do
       anchor: {0, 0}
     }
   end
+
+
 end
