@@ -57,12 +57,13 @@ const localHooks = {
       let tileW = 0;
       let tileH = 0;
 
-      function normalize(cells) {
-        const xs = cells.map((c) => c[0]);
-        const ys = cells.map((c) => c[1]);
-        const minx = Math.min(...xs);
-        const miny = Math.min(...ys);
-        return cells.map((c) => [c[0] - minx, c[1] - miny]);
+      const broadcastPosition = () => {
+        this.pushEvent("update_position", {
+          //TODO change this when no longer using the entire shapes collection 
+          piece: SHAPES[shapeIndex].name,
+          row: anchorRow,
+          col: anchorCol,
+        })
       }
 
       function bounds(cells) {
@@ -179,6 +180,7 @@ const localHooks = {
         });
 
         blockEl.dataset.shape = SHAPES[shapeIndex].name;
+        broadcastPosition();
       };
 
       const measure = () => {
@@ -308,16 +310,16 @@ const localHooks = {
         } else if (key === " " || key === "spacebar") {
           // handle placing the piece
           e.preventDefault();
-          
+
           const anchor = SHAPES[shapeIndex].anchor;
           const [anchorX, anchorY] = anchor;
-          
+
           console.log('Placing piece at anchor:', anchorRow, anchorCol, 'with cells:', oriented, 'anchor offset:', anchor);
-          
+
           const cellsRelativeToAnchor = oriented.map(([x, y]) => [x - anchorX, y - anchorY]);
-          
+
           const placementValid = true // TODO: actually verify with backend
-          
+
           if (placementValid) {
             this.pushEvent("place_piece", {
               row: anchorRow.toString(),
@@ -345,16 +347,22 @@ const localHooks = {
 
             // Remove clone and restore original after the animation ends.
             setTimeout(() => {
-              try { clone.remove(); } catch (e) {}
+              try { clone.remove(); } catch (e) { }
               blockEl.style.visibility = "visible";
               blockEl.style.pointerEvents = "";
               // Restore input after animation finishes
               inputBlocked = false;
             }, 500);
           }
-          
+
           return;
         }
+
+        // receives other players' positions
+        this.handleEvent("position_updated", ({ player_id, piece, row, col, color }) => {
+          // TODO: render other players somehow
+          console.log(`[TODO] player ${player_id} (color ${color}): ${piece} at (${row}, ${col})`);
+        });
 
         if (moved || ["]", "["].includes(key)) {
           e.preventDefault();
@@ -377,7 +385,7 @@ const localHooks = {
         window.removeEventListener("keydown", keyHandler);
         try {
           ro.disconnect();
-        } catch (e) {}
+        } catch (e) { }
       };
     },
     destroyed() {
@@ -424,7 +432,7 @@ const localHooks = {
       })
     }
   }
-,
+  ,
 
   JoinPublic: {
     mounted() {

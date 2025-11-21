@@ -189,7 +189,7 @@ defmodule BlocTheLineWeb.RoomLive do
 
   # handle player position updates from frontend
   def handle_event("update_position", %{"piece" => piece, "row" => row, "col" => col}, socket) do
-    coord = {String.to_integer(col), String.to_integer(row)}
+    coord = {col, row}
 
     Rooms.update_position(
       socket.assigns.room_code,
