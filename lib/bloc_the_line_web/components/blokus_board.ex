@@ -9,7 +9,7 @@ defmodule BlocTheLineWeb.BlokusBoard do
     ~H"""
     <div
       id="blokus-board"
-      class="inline-block border border-gray-400 relative"
+      class="inline-block border border-gray-400 relative bg-neutral-700"
     >
       <%= for {row, row_index} <- Enum.with_index(@grid) do %>
         <div class="flex blokus-row">
@@ -20,12 +20,12 @@ defmodule BlocTheLineWeb.BlokusBoard do
               data-row={row_index}
               data-col={col_index}
               class={[
-                "blokus-tile w-8 h-8 border border-gray-300 cursor-pointer",
+                "blokus-tile bg-neutral-700 w-8 h-8 border border-neutral-500 cursor-pointer",
                 cell == 1 && "bg-blue-500",
                 cell == 2 && "bg-red-500",
                 cell == 3 && "bg-green-500",
                 cell == 4 && "bg-yellow-500",
-                cell == 0 && "bg-white"
+                cell == 0 && "bg-neutral-700"
               ]}
             >
             </div>
@@ -54,4 +54,3 @@ defmodule BlocTheLineWeb.BlokusBoard do
   # If it's already a 2D list (for backwards compatibility), just return it
   defp board_to_grid(board) when is_list(board), do: board
 end
-

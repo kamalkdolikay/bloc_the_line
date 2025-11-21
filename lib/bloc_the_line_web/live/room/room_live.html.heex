@@ -1,11 +1,11 @@
-<div class="min-h-screen bg-gray-100 p-8">
-  <div class="max-w-6xl mx-auto">
+<div class="flex min-h-screen min-w-screen justify-center items-center bg-neutral-900">
+  <div class="max-w-6xl">
     <!-- Header -->
-    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+    <div class="p-6">
       <div class="flex justify-between items-center">
         <div>
-          <h1 class="text-3xl font-bold text-gray-800">Room: {@room_code}</h1>
-          <p class="text-gray-600">Playing as: {@player_name} (P{@player_color})</p>
+          <h1 class="text-3xl font-bold">Room: {@room_code}</h1>
+          <p class="">Playing as: {@player_name} (P{@player_color})</p>
         </div>
 
         <div class="flex gap-3">
@@ -14,19 +14,19 @@
             id="copy-button"
             phx-hook="CopyToClipboard"
             data-text={url(~p"/room/#{@room_code}")}
-            class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition"
+            class="bg-blue-800 hover:bg-blue-700 text-white px-6 py-2 transition"
           >
             {if @copied, do: "✓ Copied!", else: "Copy Invite Link"}
           </button>
           <button
             phx-click="toggle_public"
-            class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition"
+            class="bg-green-800 hover:bg-green-700 text-white px-6 py-2 transition"
           >
             {if @public, do: "Make Private", else: "Make Public"}
           </button>
           <.link
             navigate={~p"/"}
-            class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition"
+            class="bg-red-800 hover:bg-red-700 text-white px-6 py-2 transition"
           >
             Leave Room
           </.link>
@@ -34,31 +34,31 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-4">
       <!-- Players List -->
       <div class="lg:col-span-1">
-        <div class="bg-white rounded-lg shadow-lg p-6">
-          <h2 class="text-xl font-semibold mb-4 text-gray-800">Players ({map_size(@players)})</h2>
+        <div class="p-6">
+          <h2 class="text-xl font-semibold mb-4">Players ({map_size(@players)})</h2>
 
           <div class="space-y-3">
             <%= for {_id, player} <- @players do %>
-              <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+              <div class="flex items-center gap-3 p-3 bg-neutral-700">
                 <div class={"w-10 h-10 rounded-full flex items-center justify-center text-white font-bold #{
                   case player.color do
                     1 -> "bg-blue-500"
                     2 -> "bg-red-500"
                     3 -> "bg-green-500"
                     4 -> "bg-yellow-500"
-                    _ -> "bg-gray-500"
+                    _ -> "bg-neutral-500"
                   end
                 }"}>
                   {String.first(player.name)}
                 </div>
 
                 <div class="flex-1">
-                  <p class="font-semibold text-gray-800">
+                  <p class="font-semibold">
                     {player.name}
-                    <span class="text-sm text-gray-500">(P{player.color})</span>
+                    <span class="text-sm">(P{player.color})</span>
                   </p>
 
                   <%= if player.id == @player_id do %>
@@ -70,12 +70,10 @@
           </div>
         </div>
       </div>
+
       <!-- Game Area -->
       <div class="lg:col-span-3">
-        <div class="bg-white rounded-lg shadow-lg p-8">
-          <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">Blokus Board</h2>
-
-
+        <div class="p-6">
           <div
             id="moving-block-container"
             phx-hook="MovingBlock"
@@ -89,7 +87,7 @@
 <!-- leave in for use with JS measurements -->
             <div
              
-              class="blokus-tile w-8 h-8"
+              class="blokus-tile bg-neutral-700 w-8 h-8"
              
               style="position: absolute; opacity: 0; pointer-events: none;"
             
@@ -97,7 +95,7 @@
             </div>
           </div>
 
-          <div class="mt-4 text-center text-sm text-gray-600">
+          <div class="mt-4 text-center text-sm">
             <p>
               Use WASD to move | R/E to rotate | F/V to flip | [ ] to change piece | SPACE to place
             </p>
