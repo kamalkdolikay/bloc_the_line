@@ -92,5 +92,20 @@ defmodule BlocTheLine.BoardTest do
       assert {:err, _} =
                Board.add_piece(board2, z5, {0, 3}, @player)
     end
+
+    test "9. tests P and L4", %{board: board} do
+      #    █
+      # █X█X
+      # ██ ██ This should not allowed.
+      p = Pieces.get(:P)
+      l4 = Pieces.get(:L4)
+
+      newP = p |> Piece.flip(:vertical) |> Piece.rotate(:ccw)
+      newL4 = l4 |> Piece.rotate(:ccw) |> Piece.flip(:vertical)
+
+      assert {:ok, board1} = Board.add_piece(board, newL4, {8,7}, @player)
+      assert {:err, _} = Board.add_piece(board, newP, {5,8}, @player)
+
+    end
   end
 end
