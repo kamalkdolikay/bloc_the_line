@@ -57,4 +57,13 @@ defmodule BlocTheLine.Rooms do
     |> Base.encode16()
     |> String.slice(0, 6)
   end
+
+  # Sets the room as ready
+  def set_ready(room_code, player_id, ready) do
+    RoomServer.set_ready(room_code, player_id, ready)
+  end
+
+  def start_game(room_code) do
+    RoomServer.start_game(room_code)
+  end
 end
