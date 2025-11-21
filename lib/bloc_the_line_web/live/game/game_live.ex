@@ -1,11 +1,10 @@
 defmodule BlocTheLineWeb.GameLive do
   use BlocTheLineWeb, :live_view
 
-
   @impl true
   def mount(_params, _session, socket) do
     # Create a 20x20 empty board for demo
-    board = for _ <- 1..20, do: for(_ <- 1..20, do: 0)
+    board = Board.new(20, 20, 4)
 
     # convert pieces to lists for JS
     pieces =

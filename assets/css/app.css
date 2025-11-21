@@ -106,8 +106,8 @@
 
 /* Moving overlay block styles */
 .moving-block {
-  background: rgba(220, 38, 38, 0.35); /* semi-transparent red container */
-  border: 2px solid rgba(139, 92, 246, 0.9);
+  /* background: rgba(220, 38, 38, 0.35); /* semi-transparent red container */
+  /* border: 2px solid rgba(139, 92, 246, 0.9);  */
   box-sizing: border-box;
   z-index: 50;
   will-change: transform, width, height;
@@ -128,3 +128,69 @@
   box-sizing: border-box;
   transition: transform 120ms cubic-bezier(.2,.8,.2,1), opacity 120ms linear, background-color 120ms linear;
 }
+
+/* add box-shadow to the tiles */
+.blokus-tile.bg-blue-600,
+.blokus-tile.bg-red-600,
+.blokus-tile.bg-purple-600,
+.blokus-tile.bg-yellow-600 {
+box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Timer display styles */
+.timer-display {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #174caf;
+}
+
+/* Piece placement animations */
+@keyframes shake {
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.piece-placed-error {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* BLOCKUS TILE TEXTURES */
+.blokus-tile {
+  background-image: url("/images/base_tile.png");
+  background-size: cover;
+  background-repeat: no-repeat;
+  image-rendering: pixelated; 
+  
+}
+
+/* PLAYER PIECE TEXTURES */
+.p1-tile {
+  background-image: url("/images/blue_piece.png");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+.p2-tile {
+  background-image: url("/images/red_piece.png");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+.p3-tile {
+  background-image: url("/images/green_piece.png");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+.p4-tile {
+  background-image: url("/images/purple_piece.png");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+
+

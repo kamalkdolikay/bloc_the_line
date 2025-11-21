@@ -1,0 +1,140 @@
+<div class="min-h-screen bg-gray-100 p-8">
+  <div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-800">Room: {@room_code}</h1>
+          <p class="text-gray-600">Playing as: {@player_name} (P{@player_color})</p>
+        </div>
+
+        <div class="flex gap-3">
+          <button
+            phx-click="copy_link"
+            id="copy-button"
+            phx-hook="CopyToClipboard"
+            data-text={url(~p"/room/#{@room_code}")}
+            class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition"
+          >
+            {if @copied, do: "✓ Copied!", else: "Copy Invite Link"}
+          </button>
+          <button
+            phx-click="toggle_public"
+            class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition"
+          >
+            {if @public, do: "Make Private", else: "Make Public"}
+          </button>
+          <.link
+            navigate={~p"/"}
+            class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition"
+          >
+            Leave Room
+          </.link>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <!-- Players List -->
+      <div class="lg:col-span-1">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+          <h2 class="text-xl font-semibold mb-4 text-gray-800">Players ({map_size(@players)})</h2>
+          <!-- Ready Button -->
+          <div class="space-y-3">
+            <%= for {id, player} <- @players do %>
+              <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <div class={"w-10 h-10 rounded-full flex items-center justify-center text-white font-bold #{
+                  case player.color do
+                    1 -> "bg-blue-500"
+                    2 -> "bg-red-500"
+                    3 -> "bg-green-500"
+                    4 -> "bg-yellow-500"
+                    _ -> "bg-gray-500"
+                  end
+                }"}>
+                  {String.first(player.name)}
+                </div>
+                <div class="flex-1">
+                  <p class="font-semibold text-gray-800">
+                    {player.name}
+                    <span class="text-sm text-gray-500">(P{player.color})</span>
+                  </p>
+
+                  <%= if player.id == @player_id do %>
+                    <p class="text-xs text-blue-600">You</p>
+                  <% end %>
+                  <p class="text-xs">
+                    {if player.ready, do: "Ready", else: "Not Ready"}
+                  </p>
+                  <%= if id == @player_id do %>
+                    <button
+                      phx-click="toggle_ready"
+                      phx-value-ready={"#{if player.ready == true, do: "false", else: "true"}"}
+                      class="ml-2 px-2 py-1 rounded bg-blue-500 text-white"
+                    >
+                      {if player.ready == true, do: "Unready", else: "Ready"}
+                    </button>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+            <!-- Game Start Button -->
+            <%= if @player_id == @host_id and all_ready?(@players) and not @game_started do %>
+              <button
+                phx-click="start_game"
+                class="mt-4 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg transition"
+              >
+                Start Game
+              </button>
+            <% else %>
+              <div class="mt-4 text-center text-gray-700 font-semibold">
+                <% ready_count =
+                  Enum.count(@players, fn {_id, player} -> player.ready == true end) %>
+                <% total_count = map_size(@players) %> Players Ready: {ready_count} / {total_count}
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+      <!-- Game Area -->
+      <div class="lg:col-span-3">
+        <%= if @game_started do %>
+          <div class="bg-white rounded-lg shadow-lg p-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">Blokus Board</h2>
+
+            <div
+              id="moving-block-container"
+              phx-hook="MovingBlock"
+              data-pieces={Jason.encode!(@pieces)}
+              data-rows="20"
+              data-cols="20"
+              style="position: relative; display: inline-block;"
+            >
+              <.blokus_board board={@board} />
+              <div class="moving-block" data-row="0" data-col="0"></div>
+              <!-- leave in for use with JS measurements -->
+              <div
+                class="blokus-tile w-8 h-8"
+                style="position: absolute; opacity: 0; pointer-events: none;"
+              >
+              </div>
+            </div>
+
+            <div class="mt-4 text-center text-sm text-gray-600">
+              <p>
+                Use WASD to move | R/E to rotate | F/V to flip | [ ] to change piece | SPACE to place
+              </p>
+            </div>
+          </div>
+        <% else %>
+          <div class="bg-white rounded-lg shadow-lg p-8">
+            <div class="text-center py-12">
+              <h2 class="text-2xl font-bold text-gray-800 mb-4">Waiting for game to start...</h2>
+              <p class="text-gray-600">The host will start the game when all players are ready.</p>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

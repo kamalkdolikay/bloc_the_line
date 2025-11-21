@@ -52,7 +52,7 @@ lib/
     │
     ├── router.ex                    ← live "/game", GameLive, :index
     ├── endpoint.ex
-    └── my_live_app_web.ex           ← import custom components in live_view function
+    └── bloc_the_line_web.ex         ← import custom components in live_view function
 ```
 
 ### File Naming Conventions (Strict!)
@@ -112,26 +112,52 @@ live "/home", HomeLive, :index
 
 ### How to Run This Project
 
-#### Clone this repo
+#### 1. Clone this repo
 
 ```bash
 https://github.com/kamalkdolikay/bloc_the_line.git
 cd bloc_the_line
 ```
 
-#### Run from terminal
+#### 2. Important for Windows users (line endings)
+The project uses LF line endings for all Elixir files and enforces it with `.gitattributes`.
+To avoid `mix format --check-formatted` failures and CRLF/LF mismatches on Windows, run once:
+```bash
+git config --global core.autocrlf false
+```
+This ensures Git does not automatically convert line endings on Windows, keeping everything consistent across Linux, macOS, and Windows.
+
+> The included `.gitattributes` already marks all `*.ex`, `*.exs`, `*.heex`, etc. as `text eol=lf`, so with the above setting the formatter will behave identically on every OS.
+
+#### 3. Install dependencies & start the server
 
 ```bash
 mix deps.get
 mix phx.server
 ```
 
+### Formatting
+```bash
+# Format all files according to .formatter.exs (elixir files only)
+mix format
+
+# Optional: check if any files still need formatting (CI will fail if this returns non-zero)
+mix format --check-formatted
+```
+
+Running `mix format` before you commit guarantees:  
+   - No whitespace / line-ending conflicts  
+   - Consistent code style across all contributors 
+   - CI passes automatically
+
 ### How to Play (Lobby in progress!)
 
-1. Go to `/lobby`
-2. Click **New Game**
-3. Share the game ID
-4. Up to 4 players join → game starts automatically
+1. Go to `/`
+2. Enter name
+3. Click **Create Room**
+4. Share the game ID
+5. Up to 4 players join can join one room 
+6. Game starts automatically
 
 ### Contributing
 
@@ -155,10 +181,18 @@ We love blocks and contributors!
 git checkout dev
 git pull origin dev
 git checkout -b feature/your-epic-idea
+
 # .... code .....
+
+# ALWAYS RUN BEFORE COMMITTING
+mix format                     # formats elixir files
+mix format --check-formatted   # should exit with code 0
+
+git add .
 git commit -m "Add epic idea"
 git push origin feature/your-epic-idea
-# Open PR: feature/your-cool-thing → dev
+
+# Open PR: feature/your-epic-idea → dev
 # When dev is stable → create PR: dev → main
 ```
 > **main** = production-ready, stable, publicly shareable

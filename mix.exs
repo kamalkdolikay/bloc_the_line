@@ -62,7 +62,9 @@ defmodule BlocTheLine.MixProject do
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:git_hooks, "~> 0.8.0", only: [:dev], runtime: false}
     ]
   end
 
