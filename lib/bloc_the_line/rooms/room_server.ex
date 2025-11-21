@@ -34,6 +34,10 @@ defmodule BlocTheLine.Rooms.RoomServer do
     GenServer.call(via_tuple(room_code), {:set_public, public})
   end
 
+  def update_position(room_code, player_id, piece, coord) when is_tuple(coord) do
+    GenServer.call(via_tuple(room_code), {:update_position, player_id, piece, coord})
+  end
+
   @impl true
   def init(room_code) do
     state = %{
@@ -47,7 +51,9 @@ defmodule BlocTheLine.Rooms.RoomServer do
       # ref => player_id
       monitors: %{},
       # player_id => ref
-      player_refs: %{}
+      player_refs: %{},
+      # player_id => %{piece: :F, coord: {3, 5}}
+      player_positions: %{}
     }
 
     Logger.info("Room #{room_code} created")
@@ -83,7 +89,8 @@ defmodule BlocTheLine.Rooms.RoomServer do
       new_state =
         state
         |> put_in([:players, player_id], new_player)
-        |> Map.put(:next_player_color, rem(player_color, 4) + 1) # cycle the color
+        # cycle the color
+        |> Map.put(:next_player_color, rem(player_color, 4) + 1)
         |> Map.put(:monitors, monitors)
         |> Map.put(:player_refs, player_refs)
 
@@ -137,7 +144,6 @@ defmodule BlocTheLine.Rooms.RoomServer do
   def handle_call(:get_state, _from, state) do
     {:reply, state, state}
   end
-
 
   @impl true
   def handle_call(:list_players, _from, state) do
@@ -206,6 +212,25 @@ defmodule BlocTheLine.Rooms.RoomServer do
   end
 
   @impl true
+  def handle_call({:update_position, player_id, piece, coord}, _from, state) do
+    new_positions =
+      Map.put(state.player_positions, player_id, %{
+        piece: piece,
+        coord: coord
+      })
+
+    new_state = %{state | player_positions: new_positions}
+
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "room:#{state.room_code}",
+      {:position_updated, player_id, piece, coord}
+    )
+
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
   def handle_info({:DOWN, ref, :process, _pid, _reason}, state) do
     case Map.pop(state.monitors, ref) do
       {nil, _monitors} ->
@@ -265,6 +290,4 @@ defmodule BlocTheLine.Rooms.RoomServer do
       anchor: {0, 0}
     }
   end
-
-
 end
