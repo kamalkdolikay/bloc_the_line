@@ -4,24 +4,78 @@
 
     <p style="text-align: center; margin-bottom: 1.5rem;">Blokus Multiplayer</p>
 
-    <%= if @error do %>
-      <div style="border: 1px solid #c00; padding: 0.75rem; margin-bottom: 1rem; color: red;">
-        {@error}
+    <%= if @flash[:error] do %>
+      <div role="alert" style="border:1px solid #fca5a5; background:#fff1f2; color:#991b1b; padding:0.75rem; margin-bottom:1rem; border-radius:4px;">
+        <strong style="display:block; margin-bottom:0.25rem;">Error</strong>
+        {@flash[:error]}
       </div>
     <% end %>
 
+    <%= if @flash[:info] do %>
+      <div role="status" style="border:1px solid #bbf7d0; background:#f0fdf4; color:#14532d; padding:0.75rem; margin-bottom:1rem; border-radius:4px;">
+        <strong style="display:block; margin-bottom:0.25rem;">Notice</strong>
+        <%= @flash[:info] %>
+      </div>
+    <% end %>
+    <!-- Public rooms list: clicking Join will prefill the lobby form and trigger browser validation -->
+    <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Public Rooms</h2>
+    
+    <div style="margin-bottom: 1rem;">
+      <%= if Enum.empty?(@public_rooms || []) do %>
+        <p style="color: #666;">No public rooms right now.</p>
+      <% else %>
+        <div style="display: grid; gap: 0.5rem;">
+          <%= if @prefill_notice do %>
+            <div
+              role="alert"
+              style="border:1px solid #f59e0b; background:#fffbeb; color:#92400e; padding:0.5rem; margin-bottom:0.5rem; border-radius:4px;"
+            >
+              <strong style="display:block; margin-bottom:0.25rem;">Notice</strong> {@prefill_notice}
+            </div>
+          <% end %>
+          
+          <%= for room <- @public_rooms do %>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem; border:1px solid #ddd; gap:0.75rem; flex-wrap:nowrap;">
+              <div style="min-width:0; flex:1; display:flex; flex-direction:column;">
+                <strong style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                  {room.room_code}
+                </strong>
+                <div style="font-size:0.85rem; color:#666;">Players: {length(room.players)}</div>
+              </div>
+              
+              <div style="white-space:nowrap;">
+                <button
+                  id={"join_public_#{room.room_code}"}
+                  phx-hook="JoinPublic"
+                  data-room-code={room.room_code}
+                  type="button"
+                  title="Join as guest (or use name above)"
+                  style="cursor: pointer;"
+                  class="inline-block px-2 py-1 border border-black text-sm rounded"
+                >
+                  Join
+                </button>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+    
     <div style="margin-bottom: 2rem;">
       <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Create New Room</h2>
 
+      
       <form phx-submit="create_room">
         <input
           type="text"
           name="player_name"
           placeholder="Your Name"
           value={@player_name}
-          phx-change="update_player_name"
+          phx-input="update_player_name"
           style="width: 100%; padding: 0.5rem; border: 1px solid #aaa; margin-bottom: 0.5rem;"
           required
+          autofocus={@room_code != ""}
         />
         <button
           type="submit"
@@ -31,26 +85,28 @@
         </button>
       </form>
     </div>
-
+    
     <div>
       <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Join Existing Room</h2>
 
+      
       <form phx-submit="join_room">
         <input
           type="text"
           name="player_name"
           placeholder="Your Name"
           value={@player_name}
-          phx-change="update_player_name"
-          style="width: 100%; padding: 0.5rem; border: 1px solid #aaa; margin-bottom: 0.5rem;"
+          phx-input="update_player_name"
+          autofocus={@room_code != ""}
           required
+          style="width: 100%; padding: 0.5rem; border: 1px solid #aaa; margin-bottom: 0.5rem;"
         />
         <input
           type="text"
           name="room_code"
           placeholder="Room Code"
           value={@room_code}
-          phx-change="update_room_code"
+          phx-input="update_room_code"
           style="width: 100%; padding: 0.5rem; border: 1px solid #aaa; margin-bottom: 0.5rem; text-transform: uppercase;"
           maxlength="6"
           required
