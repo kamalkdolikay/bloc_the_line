@@ -47,7 +47,9 @@ defmodule BlocTheLine.Rooms.RoomServer do
       # ref => player_id
       monitors: %{},
       # player_id => ref
-      player_refs: %{}
+      player_refs: %{},
+      # player_id => %{piece: :F, coord: {3, 5}}
+      player_positions: %{}
     }
 
     Logger.info("Room #{room_code} created")
@@ -83,7 +85,8 @@ defmodule BlocTheLine.Rooms.RoomServer do
       new_state =
         state
         |> put_in([:players, player_id], new_player)
-        |> Map.put(:next_player_color, rem(player_color, 4) + 1) # cycle the color
+        # cycle the color
+        |> Map.put(:next_player_color, rem(player_color, 4) + 1)
         |> Map.put(:monitors, monitors)
         |> Map.put(:player_refs, player_refs)
 
@@ -137,7 +140,6 @@ defmodule BlocTheLine.Rooms.RoomServer do
   def handle_call(:get_state, _from, state) do
     {:reply, state, state}
   end
-
 
   @impl true
   def handle_call(:list_players, _from, state) do
@@ -265,6 +267,4 @@ defmodule BlocTheLine.Rooms.RoomServer do
       anchor: {0, 0}
     }
   end
-
-
 end
