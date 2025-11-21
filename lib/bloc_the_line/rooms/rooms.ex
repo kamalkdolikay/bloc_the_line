@@ -78,6 +78,14 @@ defmodule BlocTheLine.Rooms do
     RoomServer.place_piece(room_code, player_id, row, col, cells)
   end
 
+  # updates the players position
+  def update_position(room_code, player_id, piece, coord) do
+    case room_exists?(room_code) do
+      true -> RoomServer.update_position(room_code, player_id, piece, coord)
+      false -> {:error, :room_not_found}
+    end
+  end
+
   def get_board(room_code) do
     RoomServer.get_board(room_code)
   end

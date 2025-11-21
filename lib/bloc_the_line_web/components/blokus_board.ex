@@ -20,12 +20,12 @@ defmodule BlocTheLineWeb.BlokusBoard do
               data-row={row_index}
               data-col={col_index}
               class={[
-                "blokus-tile w-8 h-8 border border-gray-300 cursor-pointer",
-                cell == 1 && "bg-blue-500",
-                cell == 2 && "bg-red-500",
-                cell == 3 && "bg-green-500",
-                cell == 4 && "bg-yellow-500",
-                cell == 0 && "bg-white"
+                "blokus-tile w-8 h-8  cursor-pointer",
+                cell == 1 && "p1-tile",
+                cell == 2 && "p2-tile",
+                cell == 3 && "p3-tile",
+                cell == 4 && "p4-tile",
+                cell == 0 && "tile-empty"
               ]}
             >
             </div>
@@ -54,4 +54,3 @@ defmodule BlocTheLineWeb.BlokusBoard do
   # If it's already a 2D list (for backwards compatibility), just return it
   defp board_to_grid(board) when is_list(board), do: board
 end
-
