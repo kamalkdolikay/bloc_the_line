@@ -5,7 +5,7 @@
       <div class="flex justify-between items-center">
         <div>
           <h1 class="text-3xl font-bold text-gray-800">Room: {@room_code}</h1>
-          <p class="text-gray-600">Playing as: {@player_name}</p>
+          <p class="text-gray-600">Playing as: {@player_name} (P{@player_color})</p>
         </div>
 
         <div class="flex gap-3">
@@ -43,12 +43,23 @@
           <div class="space-y-3">
             <%= for {_id, player} <- @players do %>
               <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                <div class={"w-10 h-10 rounded-full flex items-center justify-center text-white font-bold #{
+                  case player.color do
+                    1 -> "bg-blue-500"
+                    2 -> "bg-red-500"
+                    3 -> "bg-green-500"
+                    4 -> "bg-yellow-500"
+                    _ -> "bg-gray-500"
+                  end
+                }"}>
                   {String.first(player.name)}
                 </div>
 
                 <div class="flex-1">
-                  <p class="font-semibold text-gray-800">{player.name}</p>
+                  <p class="font-semibold text-gray-800">
+                    {player.name}
+                    <span class="text-sm text-gray-500">(P{player.color})</span>
+                  </p>
 
                   <%= if player.id == @player_id do %>
                     <p class="text-xs text-blue-600">You</p>

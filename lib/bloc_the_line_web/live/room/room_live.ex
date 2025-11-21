@@ -27,6 +27,9 @@ defmodule BlocTheLineWeb.RoomLive do
               # Get the board from room state (not empty!)
               board = room_state.board
 
+              # Get the player's color (1-4) to display as P1, P2, P3, P4
+              player_color = get_in(room_state.players, [player_id, :color]) || 1
+
               # Get all pieces for the MovingBlock hook
               pieces =
                 Pieces.all()
@@ -51,6 +54,7 @@ defmodule BlocTheLineWeb.RoomLive do
                |> assign(:room_code, room_code)
                |> assign(:player_id, player_id)
                |> assign(:player_name, player_name)
+               |> assign(:player_color, player_color)
                |> assign(:players, room_state.players)
                |> assign(:public, Map.get(room_state, :public, false))
                |> assign(:board, board)
