@@ -34,6 +34,13 @@ defmodule BlocTheLine.Rooms.RoomServer do
     GenServer.call(via_tuple(room_code), {:set_public, public})
   end
 
+  # For the ready function
+  def set_ready(room_code, player_id, ready) do
+    GenServer.call(via_tuple(room_code), {:set_ready, player_id, ready})
+  end
+
+  def start_game(room_code) do
+    GenServer.call(via_tuple(room_code), :start_game)
   def update_position(room_code, player_id, piece, coord) when is_tuple(coord) do
     GenServer.call(via_tuple(room_code), {:update_position, player_id, piece, coord})
   end
@@ -59,7 +66,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
     Logger.info("Room #{room_code} created")
     {:ok, state}
   end
-
+  
   @impl true
   def handle_call({:join, player_name}, {from_pid, _ref} = _from, state) do
     if map_size(state.players) >= 4 do
@@ -72,6 +79,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
         id: player_id,
         name: player_name,
         color: player_color,
+        ready: false,
         joined_at: DateTime.utc_now()
       }
 
@@ -94,6 +102,14 @@ defmodule BlocTheLine.Rooms.RoomServer do
         |> Map.put(:monitors, monitors)
         |> Map.put(:player_refs, player_refs)
 
+      # Assign host_id if this is the first player
+      new_state =
+        if map_size(state.players) == 0 do
+          Map.put(new_state, :host_id, player_id)
+        else
+          new_state
+        end
+
       Phoenix.PubSub.broadcast(
         BlocTheLine.PubSub,
         "room:#{state.room_code}",
@@ -108,24 +124,50 @@ defmodule BlocTheLine.Rooms.RoomServer do
     end
   end
 
+  # Setter the player's ready variable
+  @impl true
+  def handle_call({:set_ready, player_id, ready}, _from, state) do
+    new_state = update_in(state.players[player_id].ready, fn _ -> ready end)
+
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "room:#{state.room_code}",
+      {:player_ready_changed, player_id, ready}
+    )
+
+    {:reply, :ok, new_state}
+  end
+
+  # Sets the game_started variable to true to start the game
+  @impl true
+  def handle_call(:start_game, _from, state) do
+    new_state = %{state | game_started: true}
+
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "room:#{state.room_code}",
+      {:game_started}
+    )
+
+    {:reply, :ok, new_state}
+  end
+
   @impl true
   def handle_call({:leave, player_id}, _from, state) do
     {player, new_players} = Map.pop(state.players, player_id)
-    # demonitor if we were tracking this player
-    {ref, player_refs} = Map.pop(state.player_refs, player_id)
-    monitors = if ref, do: Map.delete(state.monitors, ref), else: state.monitors
 
-    if ref do
-      Logger.debug("Demonitoring ref=#{inspect(ref)} for player=#{player_id}")
-
-      try do
-        Process.demonitor(ref, [:flush])
-      rescue
-        _ -> :ok
+    # If the leaving player is the host, assign host_id to the next player (if any)
+    new_host_id =
+      if state.host_id == player_id do
+        case Map.keys(new_players) do
+          [next_host | _] -> next_host
+          [] -> nil
+        end
+      else
+        state.host_id
       end
-    end
 
-    new_state = %{state | players: new_players, monitors: monitors, player_refs: player_refs}
+    new_state = %{state | players: new_players, host_id: new_host_id}
 
     if player do
       Phoenix.PubSub.broadcast(
@@ -133,6 +175,15 @@ defmodule BlocTheLine.Rooms.RoomServer do
         "room:#{state.room_code}",
         {:player_left, player}
       )
+
+      # Broadcast host change if the host changed
+      if state.host_id == player_id and new_host_id != nil do
+        Phoenix.PubSub.broadcast(
+          BlocTheLine.PubSub,
+          "room:#{state.room_code}",
+          {:host_changed, new_host_id}
+        )
+      end
 
       Logger.info("Player #{player.name} left room #{state.room_code}")
     end

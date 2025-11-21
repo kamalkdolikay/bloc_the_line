@@ -59,6 +59,9 @@ defmodule BlocTheLineWeb.RoomLive do
                |> assign(:public, Map.get(room_state, :public, false))
                |> assign(:board, board)
                |> assign(:pieces, pieces)
+               |> assign(:copied, false)
+               |> assign(:host_id, room_state.host_id)
+               |> assign(:game_started, room_state.game_started)}
                |> assign(:player_positions, room_state.player_positions)
                |> assign(:copied, false)}
 
@@ -106,7 +109,9 @@ defmodule BlocTheLineWeb.RoomLive do
          |> assign(:board, board)
          |> assign(:pieces, [])
          |> assign(:public, false)
-         |> assign(:copied, false)}
+         |> assign(:copied, false)
+         |> assign(:host_id, nil)
+         |> assign(:game_started, false)}
       end
     end
   end
@@ -126,6 +131,13 @@ defmodule BlocTheLineWeb.RoomLive do
         IO.inspect(reason, label: "Failed to place piece")
         {:noreply, socket}
     end
+  end
+
+  # Handling ready
+  def handle_event("toggle_ready", %{"ready" => ready}, socket) do
+    ready_bool = ready == "true"
+    BlocTheLine.Rooms.set_ready(socket.assigns.room_code, socket.assigns.player_id, ready_bool)
+    {:noreply, socket}
   end
 
   # Handle rotate/flip events from MovingBlock hook
@@ -205,6 +217,23 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, assign(socket, :copied, false)}
   end
 
+  # Handler for starting game as the "host"
+  def handle_event("start_game", _params, socket) do
+    BlocTheLine.Rooms.start_game(socket.assigns.room_code)
+    {:noreply, socket}
+  end
+
+  def handle_info({:player_ready_changed, player_id, ready}, socket) do
+    players =
+      Map.update!(socket.assigns.players, player_id, fn player -> %{player | ready: ready} end)
+
+    {:noreply, assign(socket, :players, players)}
+  end
+
+  def handle_info({:game_started}, socket) do
+    {:noreply, assign(socket, :game_started, true)}
+  end
+
   # Player joined/left handlers
   def handle_info({:player_joined, player}, socket) do
     {:noreply, assign(socket, :players, Map.put(socket.assigns.players, player.id, player))}
@@ -218,6 +247,10 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, assign(socket, :players, Map.delete(socket.assigns.players, player.id))}
   end
 
+  def handle_info({:host_changed, new_host_id}, socket) do
+    {:noreply, assign(socket, :host_id, new_host_id)}
+  end
+
   def handle_info({:piece_placed, player_id, row, col, cells, new_board}, socket) do
     IO.inspect(player_id, label: "PIECE PLACED BY")
     IO.inspect({row, col}, label: "AT POSITION")
@@ -227,6 +260,11 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, assign(socket, :board, new_board)}
   end
 
+  # Check if all players are ready
+  defp all_ready?(players) do
+    Enum.all?(players, fn {_id, player} -> player.ready end)
+  end
+  
   # serve player position updates to frontend
   def handle_info({:position_updated, player_id, piece, coord}, socket) do
     {col, row} = coord
