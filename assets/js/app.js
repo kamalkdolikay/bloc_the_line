@@ -308,16 +308,16 @@ const localHooks = {
         } else if (key === " " || key === "spacebar") {
           // handle placing the piece
           e.preventDefault();
-          
+
           const anchor = SHAPES[shapeIndex].anchor;
           const [anchorX, anchorY] = anchor;
-          
+
           console.log('Placing piece at anchor:', anchorRow, anchorCol, 'with cells:', oriented, 'anchor offset:', anchor);
-          
+
           const cellsRelativeToAnchor = oriented.map(([x, y]) => [x - anchorX, y - anchorY]);
-          
+
           const placementValid = true // TODO: actually verify with backend
-          
+
           if (placementValid) {
             this.pushEvent("place_piece", {
               row: anchorRow.toString(),
@@ -345,14 +345,14 @@ const localHooks = {
 
             // Remove clone and restore original after the animation ends.
             setTimeout(() => {
-              try { clone.remove(); } catch (e) {}
+              try { clone.remove(); } catch (e) { }
               blockEl.style.visibility = "visible";
               blockEl.style.pointerEvents = "";
               // Restore input after animation finishes
               inputBlocked = false;
             }, 500);
           }
-          
+
           return;
         }
 
@@ -377,7 +377,7 @@ const localHooks = {
         window.removeEventListener("keydown", keyHandler);
         try {
           ro.disconnect();
-        } catch (e) {}
+        } catch (e) { }
       };
     },
     destroyed() {
@@ -424,7 +424,7 @@ const localHooks = {
       })
     }
   }
-,
+  ,
 
   JoinPublic: {
     mounted() {
