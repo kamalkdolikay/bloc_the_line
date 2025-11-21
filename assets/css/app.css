@@ -145,3 +145,14 @@
 .piece-placed-error {
   animation: shake 0.5s ease-in-out;
 }
+
+/* BLOCKUS TILE TEXTURES */
+.blokus-tile {
+  background-image: url("/images/base_tile.png");
+  background-size: cover;
+  background-repeat: no-repeat;
+  image-rendering: pixelated; 
+  
+}
+
+
