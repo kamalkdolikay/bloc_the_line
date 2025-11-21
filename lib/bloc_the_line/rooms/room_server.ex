@@ -34,6 +34,10 @@ defmodule BlocTheLine.Rooms.RoomServer do
     GenServer.call(via_tuple(room_code), {:set_public, public})
   end
 
+  def update_position(room_code, player_id, piece, coord) when is_tuple(coord) do
+    GenServer.call(via_tuple(room_code), {:update_position, player_id, piece, coord})
+  end
+
   @impl true
   def init(room_code) do
     state = %{
@@ -204,6 +208,25 @@ defmodule BlocTheLine.Rooms.RoomServer do
     )
 
     Logger.info("Room #{state.room_code} public=#{public}")
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
+  def handle_call({:update_position, player_id, piece, coord}, _from, state) do
+    new_positions =
+      Map.put(state.player_positions, player_id, %{
+        piece: piece,
+        coord: coord
+      })
+
+    new_state = %{state | player_positions: new_positions}
+
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "room:#{state.room_code}",
+      {:position_updated, player_id, piece, coord}
+    )
+
     {:reply, :ok, new_state}
   end
 
