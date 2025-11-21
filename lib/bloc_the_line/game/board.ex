@@ -46,7 +46,7 @@ defmodule Board do
 
   # List of referential points used to calculated points adjacent to a coordinate.
   # E.g. {x + 0, y + 1} is adjacent of {x, y}
-  @adj_coord [{0, 1}, {0, -1}, {1, 1}, {-1, 0}]
+  @adj_coord [{0, 1}, {0, -1}, {1, 0}, {-1, 0}]
 
   @spec new(integer(), integer(), 2..4) :: Board.t()
   def new(width, height, player_count) do
