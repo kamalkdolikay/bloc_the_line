@@ -41,6 +41,8 @@ defmodule BlocTheLine.Rooms.RoomServer do
 
   def start_game(room_code) do
     GenServer.call(via_tuple(room_code), :start_game)
+  end
+
   def update_position(room_code, player_id, piece, coord) when is_tuple(coord) do
     GenServer.call(via_tuple(room_code), {:update_position, player_id, piece, coord})
   end
@@ -66,7 +68,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
     Logger.info("Room #{room_code} created")
     {:ok, state}
   end
-  
+
   @impl true
   def handle_call({:join, player_name}, {from_pid, _ref} = _from, state) do
     if map_size(state.players) >= 4 do

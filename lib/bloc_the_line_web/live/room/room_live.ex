@@ -61,7 +61,7 @@ defmodule BlocTheLineWeb.RoomLive do
                |> assign(:pieces, pieces)
                |> assign(:copied, false)
                |> assign(:host_id, room_state.host_id)
-               |> assign(:game_started, room_state.game_started)}
+               |> assign(:game_started, room_state.game_started)
                |> assign(:player_positions, room_state.player_positions)
                |> assign(:copied, false)}
 
@@ -264,7 +264,7 @@ defmodule BlocTheLineWeb.RoomLive do
   defp all_ready?(players) do
     Enum.all?(players, fn {_id, player} -> player.ready end)
   end
-  
+
   # serve player position updates to frontend
   def handle_info({:position_updated, player_id, piece, coord}, socket) do
     {col, row} = coord
