@@ -94,7 +94,7 @@ defmodule Board do
 
   First checks if the placement is valid. If valid, update Board(Add cells of piece to board_map and increase placement count of player in count_map)
   """
-  @spec add_piece(Board.t(), Piece.t(), coordinate(), player()) :: Board.t()
+  @spec add_piece(Board.t(), Piece.t(), coordinate(), player()) :: {:ok, Board.t} | {:err, Board.t}
   def add_piece(board, piece, coord, player) do
     case can_place?(board, piece, coord, player) do
       :ok ->
@@ -122,7 +122,7 @@ defmodule Board do
   Returns {:ok, player} if succeeds to find a place.
   Or returns :error, if not.
   """
-  @spec get_player_from_coord(Board.t(), coordinate()) :: player()
+  @spec get_player_from_coord(Board.t(), coordinate()) :: {:ok, player()} | :error
   def get_player_from_coord(board, coord) do
     Map.fetch(board.board_map, coord)
   end
