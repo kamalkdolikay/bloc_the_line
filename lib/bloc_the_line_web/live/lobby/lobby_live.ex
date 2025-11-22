@@ -43,19 +43,14 @@ defmodule BlocTheLineWeb.LobbyLive do
     player_name = String.trim(player_name)
 
     # rely on browser `required` validation; if empty, show an error
-    if player_name == "" do
-      {:noreply, put_flash(socket, :error, "Please enter your name")}
-    else
-      case Rooms.create_room() do
-        {:ok, room_code} ->
-            {:noreply,
-             push_navigate(socket,
-               to: ~p"/room/#{room_code}?name=#{URI.encode_www_form(player_name)}"
-             )}
+    # Allow empty player name; room will generate a guest name if none provided.
+    case Rooms.create_room() do
+      {:ok, room_code} ->
+        to = if player_name == "", do: ~p"/room/#{room_code}", else: ~p"/room/#{room_code}?name=#{URI.encode_www_form(player_name)}"
+        {:noreply, push_navigate(socket, to: to)}
 
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Failed to create room")}
-      end
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to create room")}
     end
   end
 
@@ -71,15 +66,8 @@ defmodule BlocTheLineWeb.LobbyLive do
     if room_code == "" do
       {:noreply, put_flash(socket, :error, "Please enter a room code")}
     else
-      # Require a non-empty player name; do not auto-generate guest names here.
-      if player_name == "" do
-        {:noreply, put_flash(socket, :error, "Please enter your name")}
-      else
-          {:noreply,
-           push_navigate(socket,
-             to: ~p"/room/#{room_code}?name=#{URI.encode_www_form(player_name)}"
-           )}
-      end
+      to = if player_name == "", do: ~p"/room/#{room_code}", else: ~p"/room/#{room_code}?name=#{URI.encode_www_form(player_name)}"
+      {:noreply, push_navigate(socket, to: to)}
     end
   end
 
@@ -103,13 +91,14 @@ defmodule BlocTheLineWeb.LobbyLive do
         true -> nil
       end
 
+    # Allow joining public rooms without a name; a guest name will be assigned in the room.
     if chosen_name == nil do
-      {:noreply, put_flash(socket, :error, "Please enter your name before joining a public room")}
+      {:noreply, push_navigate(socket, to: ~p"/room/#{room_code}")}
     else
-        {:noreply,
-         push_navigate(socket,
-           to: ~p"/room/#{room_code}?name=#{URI.encode_www_form(chosen_name)}"
-         )}
+      {:noreply,
+       push_navigate(socket,
+         to: ~p"/room/#{room_code}?name=#{URI.encode_www_form(chosen_name)}"
+       )}
     end
   end
 
