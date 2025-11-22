@@ -10,21 +10,30 @@ defmodule Player do
   @type coord :: {integer(), integer()}
 
   @type t :: %__MODULE__{
+          id: binary(),     # 8 bytes uuid, should be randomly created for security (use :crypto)
           name: String.t(),
+          color: non_neg_integer(), # More like a team or player number, not exactly colour
           points: non_neg_integer(),
           start_location: coord(),
           board_location: coord(),
-          current_piece: Piece.t() | nil
+          current_piece: Piece.t() | nil,
+          ready: boolean(),
+          joined_at: DateTime.t()
         }
 
   defstruct [
+    :id,
     :name,
+    :color,
     :start_location,
     :board_location,
+    :joined_at,
+    points: 0,
     current_piece: nil,
-    points: 0
+    ready: false
   ]
 
+  # TODO: start changing stuff in player.ex
   @doc "Create a player; board_location starts at start_location."
   @spec new(String.t(), coord()) :: t()
   def new(name, {x, y} = start_location)

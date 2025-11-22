@@ -51,16 +51,18 @@ defmodule BlocTheLine.Rooms.RoomServer do
   def init(room_code) do
     state = %{
       room_code: room_code,
+      # TODO: change this to a data structure that uses the Player struct instead of maps
       players: %{},
       board: Board.new(20, 20, 4),
       created_at: DateTime.utc_now(),
       game_started: false,
       next_player_color: 1,
       public: false,
-      # ref => player_id
+      # ref to player_process => player_id
       monitors: %{},
-      # player_id => ref
+      # player_id => ref to player_process (backwards map for lookup)
       player_refs: %{},
+      # TODO: will take this out as each player will have this information instead
       # player_id => %{piece: :F, coord: {3, 5}}
       player_positions: %{}
     }
@@ -77,6 +79,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
       player_id = generate_player_id()
       player_color = state.next_player_color
 
+      # TODO: change all manual new players to use the Player module struct
       new_player = %{
         id: player_id,
         name: player_name,
@@ -216,6 +219,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
       {:ok, new_board} ->
         new_state = %{state | board: new_board}
 
+        # TODO: Change state of the player that executed the move to add a piece
         Phoenix.PubSub.broadcast(
           BlocTheLine.PubSub,
           "room:#{state.room_code}",
