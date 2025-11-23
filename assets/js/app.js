@@ -50,9 +50,28 @@ const localHooks = {
       // current oriented cells - keep relative to anchor at [0,0]
       let oriented = SHAPES[shapeIndex].cells;
 
-      // anchor's row/col pos in tile coords
-      let anchorRow = parseInt(blockEl.dataset.row, 10) || 2;
-      let anchorCol = parseInt(blockEl.dataset.col, 10) || 2;
+      // Initialize anchor position from corner or last placed position
+      // Read corner and last placed from data attributes
+      let myCorner = null;
+      let lastPlaced = null;
+      
+      try {
+        myCorner = JSON.parse(container.dataset.myCorner || "null");
+        lastPlaced = JSON.parse(container.dataset.lastPlaced || "null");
+      } catch (e) {
+        console.error("Failed to parse position data:", e);
+      }
+
+      // Use last placed position if available
+      let anchorCol, anchorRow;
+      if (lastPlaced && Array.isArray(lastPlaced) && lastPlaced.length === 2) {
+        [anchorCol, anchorRow] = lastPlaced;
+      } else if (myCorner && Array.isArray(myCorner) && myCorner.length === 2) {
+        [anchorCol, anchorRow] = myCorner;
+      } else {
+        anchorCol = 2;
+        anchorRow = 2;
+      }
 
       let tileW = 0;
       let tileH = 0;
@@ -151,11 +170,14 @@ const localHooks = {
           ? "transform 0.15s ease-out"
           : "none";
 
-        // render tiles...
+        // Get player color to style tiles correctly
+        const playerColor = parseInt(blockEl.dataset.playerColor, 10) || 1;
+        const playerTileClass = `p${playerColor}-tile`;
+        
         blockEl.innerHTML = "";
         oriented.forEach(([x, y]) => {
           const t = document.createElement("div");
-          t.className = "moving-block-tile";
+          t.className = `moving-block-tile ${playerTileClass}`;
           t.style.position = "absolute";
           t.style.left = (x - b.minX) * tileW + "px";
           t.style.top = (y - b.minY) * tileH + "px";
@@ -182,6 +204,9 @@ const localHooks = {
         blockEl.dataset.shape = SHAPES[shapeIndex].name;
         broadcastPosition();
       };
+
+      // Store renderShape as a hook property so updated() can access it
+      this.renderShape = renderShape;
 
       const measure = () => {
         const r = tileEl.getBoundingClientRect();
@@ -355,8 +380,23 @@ const localHooks = {
             }, 500);
           }
 
-          return;
         }
+
+        // Listen for game_started events to set initial position to assigned corner
+        this.handleEvent("game_started", ({ col, row }) => {
+          console.log(`Game started! Setting spawn position to assigned corner (${col}, ${row})`);
+          anchorCol = col;
+          anchorRow = row;
+          renderShape(false);
+        });
+
+        // Listen for piece_placed events from the server to update spawn position
+        this.handleEvent("piece_placed", ({ col, row }) => {
+          console.log(`Piece placed at (${col}, ${row}), updating spawn position`);
+          anchorCol = col;
+          anchorRow = row;
+          renderShape(false);
+        });
 
         // receives other players' positions
         this.handleEvent("position_updated", ({ player_id, piece, row, col, color }) => {
@@ -387,6 +427,14 @@ const localHooks = {
           ro.disconnect();
         } catch (e) { }
       };
+    },
+    updated() {
+      // Re-render the shape after LiveView updates to keep it visible and so it doesn't disappear when other players place pieces
+      if (this.renderShape) {
+        requestAnimationFrame(() => {
+          this.renderShape(false);
+        });
+      }
     },
     destroyed() {
       if (this.destroy) this.destroy()
