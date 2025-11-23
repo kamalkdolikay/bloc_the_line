@@ -108,10 +108,51 @@
               data-pieces={Jason.encode!(@pieces)}
               data-rows="20"
               data-cols="20"
+              data-my-corner={Jason.encode!(Tuple.to_list(@my_corner))}
+              data-last-placed={if @last_placed_position, do: Jason.encode!(Tuple.to_list(@last_placed_position)), else: "null"}
               style="position: relative; display: inline-block;"
             >
               <.blokus_board board={@board} />
-              <div class="moving-block" data-row="0" data-col="0"></div>
+              <div class="moving-block" data-row="0" data-col="0" data-player-color={@player_color}></div>
+              
+              <!-- Corner indicators for each player -->
+              <%= for {player_id, {col, row}} <- @player_corners do %>
+                <% player = @players[player_id] %>
+                <%= if player do %>
+                  <div 
+                    class="corner-marker"
+                    style={
+                      "position: absolute; " <>
+                      "left: #{col * 32}px; " <>
+                      "top: #{row * 32}px; " <>
+                      "width: 32px; height: 32px; " <>
+                      "border: 3px solid " <> 
+                      (case player.color do
+                        1 -> "#3b82f6"
+                        2 -> "#ef4444"
+                        3 -> "#22c55e"
+                        4 -> "#a855f7"
+                        _ -> "#6b7280"
+                      end) <> "; " <>
+                      "border-radius: 4px; " <>
+                      "display: flex; align-items: center; justify-content: center; " <>
+                      "font-weight: bold; font-size: 14px; color: white; " <>
+                      "background: rgba(" <>
+                      (case player.color do
+                        1 -> "59, 130, 246"
+                        2 -> "239, 68, 68"
+                        3 -> "34, 197, 94"
+                        4 -> "168, 85, 247"
+                        _ -> "107, 114, 128"
+                      end) <> ", 0.3); " <>
+                      "pointer-events: none; z-index: 5;"
+                    }
+                  >
+                    P<%= player.color %>
+                  </div>
+                <% end %>
+              <% end %>
+              
               <!-- leave in for use with JS measurements -->
               <div
                 class="blokus-tile w-8 h-8"

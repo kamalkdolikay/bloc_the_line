@@ -61,6 +61,8 @@ defmodule BlocTheLine.Rooms.RoomServer do
       monitors: %{},
       # player_id => ref
       player_refs: %{},
+      # player_id => {col, row} corner assignment
+      player_corners: %{},
       # player_id => %{piece: :F, coord: {3, 5}}
       player_positions: %{}
     }
@@ -143,12 +145,14 @@ defmodule BlocTheLine.Rooms.RoomServer do
   # Sets the game_started variable to true to start the game
   @impl true
   def handle_call(:start_game, _from, state) do
-    new_state = %{state | game_started: true}
+    # Assign corners to players based on their colors
+    player_corners = assign_corners_to_players(state.players)
+    new_state = %{state | game_started: true, player_corners: player_corners}
 
     Phoenix.PubSub.broadcast(
       BlocTheLine.PubSub,
       "room:#{state.room_code}",
-      {:game_started}
+      {:game_started, player_corners}
     )
 
     {:reply, :ok, new_state}
@@ -158,7 +162,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
   def handle_call({:leave, player_id}, _from, state) do
     {player, new_players} = Map.pop(state.players, player_id)
 
-    # If the leaving player is the host, assign host_id to the next player (if any)
+    # If the leaving player is the host assign host_id to the next player (if any)
     new_host_id =
       if state.host_id == player_id do
         case Map.keys(new_players) do
@@ -207,12 +211,13 @@ defmodule BlocTheLine.Rooms.RoomServer do
   def handle_call({:place_piece, player_id, row, col, cells}, _from, state) do
     player_color = get_in(state.players, [player_id, :color]) || 1
     player_atom = color_to_player(player_color)
+    player_corner = Map.get(state.player_corners, player_id)
 
     # Convert cells to a Piece struct
     piece = cells_to_piece(cells)
 
-    # Use Board.add_piece with validation
-    case Board.add_piece(state.board, piece, {col, row}, player_atom) do
+    # Use Board.add_piece with validation, passing the player's assigned corner
+    case Board.add_piece(state.board, piece, {col, row}, player_atom, player_corner) do
       {:ok, new_board} ->
         new_state = %{state | board: new_board}
 
@@ -323,11 +328,33 @@ defmodule BlocTheLine.Rooms.RoomServer do
     :crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false)
   end
 
-  # Convert player color (1-4) to player atom (:p1, :p2, :p3, :p4)
+  # Convert player color to player atom (:p1, :p2, :p3, :p4)
   defp color_to_player(1), do: :p1
   defp color_to_player(2), do: :p2
   defp color_to_player(3), do: :p3
   defp color_to_player(4), do: :p4
+
+  # Assign corners to players based on player count
+  defp assign_corners_to_players(players) do
+    player_count = map_size(players)
+
+    corners =
+      case player_count do
+        # Opposite corners for 2 players
+        2 -> [{0, 0}, {19, 19}]
+        # Three corners, avoiding one
+        3 -> [{0, 0}, {19, 0}, {0, 19}]
+        # All four corners
+        _ -> [{0, 0}, {19, 0}, {0, 19}, {19, 19}]
+      end
+
+    players
+    |> Enum.sort_by(fn {_id, player} -> player.color end)
+    |> Enum.with_index()
+    |> Enum.into(%{}, fn {{player_id, _player}, index} ->
+      {player_id, Enum.at(corners, index)}
+    end)
+  end
 
   # Convert cells from JS format to a Piece struct
   defp cells_to_piece(cells) do

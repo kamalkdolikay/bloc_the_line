@@ -63,6 +63,9 @@ defmodule BlocTheLineWeb.RoomLive do
                |> assign(:host_id, room_state.host_id)
                |> assign(:game_started, room_state.game_started)
                |> assign(:player_positions, room_state.player_positions)
+               |> assign(:player_corners, Map.get(room_state, :player_corners, %{}))
+               |> assign(:my_corner, Map.get(room_state.player_corners || %{}, player_id, {0, 0}))
+               |> assign(:last_placed_position, nil)
                |> assign(:copied, false)}
 
             {:error, :room_not_found} ->
@@ -105,13 +108,17 @@ defmodule BlocTheLineWeb.RoomLive do
          |> assign(:room_code, room_code)
          |> assign(:player_id, nil)
          |> assign(:player_name, player_name)
+         |> assign(:player_color, 1)
          |> assign(:players, %{})
          |> assign(:board, board)
          |> assign(:pieces, [])
          |> assign(:public, false)
          |> assign(:copied, false)
          |> assign(:host_id, nil)
-         |> assign(:game_started, false)}
+         |> assign(:game_started, false)
+         |> assign(:player_corners, %{})
+         |> assign(:my_corner, {0, 0})
+         |> assign(:last_placed_position, nil)}
       end
     end
   end
@@ -230,8 +237,18 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, assign(socket, :players, players)}
   end
 
-  def handle_info({:game_started}, socket) do
-    {:noreply, assign(socket, :game_started, true)}
+  def handle_info({:game_started, player_corners}, socket) do
+    my_corner = Map.get(player_corners, socket.assigns.player_id, {0, 0})
+    {col, row} = my_corner
+
+    {:noreply,
+     socket
+     |> assign(:game_started, true)
+     |> assign(:player_corners, player_corners)
+     |> assign(:my_corner, my_corner)
+     # Initialize to corner
+     |> assign(:last_placed_position, my_corner)
+     |> push_event("game_started", %{col: col, row: row})}
   end
 
   # Player joined/left handlers
@@ -257,12 +274,18 @@ defmodule BlocTheLineWeb.RoomLive do
     IO.inspect(cells, label: "WITH CELLS")
     IO.inspect(new_board, label: "NEW BOARD")
     IO.inspect(socket.assigns.board, label: "OLD BOARD")
-    {:noreply, assign(socket, :board, new_board)}
-  end
 
-  # Check if all players are ready
-  defp all_ready?(players) do
-    Enum.all?(players, fn {_id, player} -> player.ready end)
+    # Track last placed position for this player
+    updated_socket =
+      if player_id == socket.assigns.player_id do
+        socket
+        |> assign(:last_placed_position, {col, row})
+        |> push_event("piece_placed", %{col: col, row: row})
+      else
+        socket
+      end
+
+    {:noreply, assign(updated_socket, :board, new_board)}
   end
 
   # serve player position updates to frontend
@@ -279,6 +302,11 @@ defmodule BlocTheLineWeb.RoomLive do
        # send the colour of the updated piece so frontend knows how to render it
        color: get_in(socket.assigns.players, [player_id, :color])
      })}
+  end
+
+  # Check if all players are ready
+  defp all_ready?(players) do
+    Enum.all?(players, fn {_id, player} -> player.ready end)
   end
 
   def terminate(_reason, socket) do
