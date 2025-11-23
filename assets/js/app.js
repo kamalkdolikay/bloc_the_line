@@ -22,7 +22,7 @@ import "phoenix_html";
 // Establish Phoenix Socket and LiveView configuration.
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
-import { hooks as colocatedHooks } from "phoenix-colocated/bloc_the_line";
+// import { hooks as colocatedHooks } from "phoenix-colocated/bloc_the_line";
 import topbar from "../vendor/topbar";
 
 const csrfToken = document
@@ -50,19 +50,39 @@ const localHooks = {
       // current oriented cells - keep relative to anchor at [0,0]
       let oriented = SHAPES[shapeIndex].cells;
 
-      // anchor's row/col pos in tile coords
-      let anchorRow = parseInt(blockEl.dataset.row, 10) || 2;
-      let anchorCol = parseInt(blockEl.dataset.col, 10) || 2;
+      // Initialize anchor position from corner or last placed position
+      // Read corner and last placed from data attributes
+      let myCorner = null;
+      let lastPlaced = null;
+      
+      try {
+        myCorner = JSON.parse(container.dataset.myCorner || "null");
+        lastPlaced = JSON.parse(container.dataset.lastPlaced || "null");
+      } catch (e) {
+        console.error("Failed to parse position data:", e);
+      }
+
+      // Use last placed position if available
+      let anchorCol, anchorRow;
+      if (lastPlaced && Array.isArray(lastPlaced) && lastPlaced.length === 2) {
+        [anchorCol, anchorRow] = lastPlaced;
+      } else if (myCorner && Array.isArray(myCorner) && myCorner.length === 2) {
+        [anchorCol, anchorRow] = myCorner;
+      } else {
+        anchorCol = 2;
+        anchorRow = 2;
+      }
 
       let tileW = 0;
       let tileH = 0;
 
-      function normalize(cells) {
-        const xs = cells.map((c) => c[0]);
-        const ys = cells.map((c) => c[1]);
-        const minx = Math.min(...xs);
-        const miny = Math.min(...ys);
-        return cells.map((c) => [c[0] - minx, c[1] - miny]);
+      const broadcastPosition = () => {
+        this.pushEvent("update_position", {
+          //TODO change this when no longer using the entire shapes collection 
+          piece: SHAPES[shapeIndex].name,
+          row: anchorRow,
+          col: anchorCol,
+        })
       }
 
       function bounds(cells) {
@@ -150,11 +170,14 @@ const localHooks = {
           ? "transform 0.15s ease-out"
           : "none";
 
-        // render tiles...
+        // Get player color to style tiles correctly
+        const playerColor = parseInt(blockEl.dataset.playerColor, 10) || 1;
+        const playerTileClass = `p${playerColor}-tile`;
+        
         blockEl.innerHTML = "";
         oriented.forEach(([x, y]) => {
           const t = document.createElement("div");
-          t.className = "moving-block-tile";
+          t.className = `moving-block-tile ${playerTileClass}`;
           t.style.position = "absolute";
           t.style.left = (x - b.minX) * tileW + "px";
           t.style.top = (y - b.minY) * tileH + "px";
@@ -179,7 +202,11 @@ const localHooks = {
         });
 
         blockEl.dataset.shape = SHAPES[shapeIndex].name;
+        broadcastPosition();
       };
+
+      // Store renderShape as a hook property so updated() can access it
+      this.renderShape = renderShape;
 
       const measure = () => {
         const r = tileEl.getBoundingClientRect();
@@ -308,16 +335,16 @@ const localHooks = {
         } else if (key === " " || key === "spacebar") {
           // handle placing the piece
           e.preventDefault();
-          
+
           const anchor = SHAPES[shapeIndex].anchor;
           const [anchorX, anchorY] = anchor;
-          
+
           console.log('Placing piece at anchor:', anchorRow, anchorCol, 'with cells:', oriented, 'anchor offset:', anchor);
-          
+
           const cellsRelativeToAnchor = oriented.map(([x, y]) => [x - anchorX, y - anchorY]);
-          
+
           const placementValid = true // TODO: actually verify with backend
-          
+
           if (placementValid) {
             this.pushEvent("place_piece", {
               row: anchorRow.toString(),
@@ -345,16 +372,37 @@ const localHooks = {
 
             // Remove clone and restore original after the animation ends.
             setTimeout(() => {
-              try { clone.remove(); } catch (e) {}
+              try { clone.remove(); } catch (e) { }
               blockEl.style.visibility = "visible";
               blockEl.style.pointerEvents = "";
               // Restore input after animation finishes
               inputBlocked = false;
             }, 500);
           }
-          
-          return;
+
         }
+
+        // Listen for game_started events to set initial position to assigned corner
+        this.handleEvent("game_started", ({ col, row }) => {
+          console.log(`Game started! Setting spawn position to assigned corner (${col}, ${row})`);
+          anchorCol = col;
+          anchorRow = row;
+          renderShape(false);
+        });
+
+        // Listen for piece_placed events from the server to update spawn position
+        this.handleEvent("piece_placed", ({ col, row }) => {
+          console.log(`Piece placed at (${col}, ${row}), updating spawn position`);
+          anchorCol = col;
+          anchorRow = row;
+          renderShape(false);
+        });
+
+        // receives other players' positions
+        this.handleEvent("position_updated", ({ player_id, piece, row, col, color }) => {
+          // TODO: render other players somehow
+          console.log(`[TODO] player ${player_id} (color ${color}): ${piece} at (${row}, ${col})`);
+        });
 
         if (moved || ["]", "["].includes(key)) {
           e.preventDefault();
@@ -377,8 +425,16 @@ const localHooks = {
         window.removeEventListener("keydown", keyHandler);
         try {
           ro.disconnect();
-        } catch (e) {}
+        } catch (e) { }
       };
+    },
+    updated() {
+      // Re-render the shape after LiveView updates to keep it visible and so it doesn't disappear when other players place pieces
+      if (this.renderShape) {
+        requestAnimationFrame(() => {
+          this.renderShape(false);
+        });
+      }
     },
     destroyed() {
       if (this.destroy) this.destroy()
@@ -424,7 +480,7 @@ const localHooks = {
       })
     }
   }
-,
+  ,
 
   JoinPublic: {
     mounted() {
@@ -443,7 +499,7 @@ const localHooks = {
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: { _csrf_token: csrfToken },
-  hooks: { ...colocatedHooks, ...localHooks },
+  hooks: localHooks,
 });
 
 // Show progress bar on live navigation and form submits

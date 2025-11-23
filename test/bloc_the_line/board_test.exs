@@ -11,7 +11,7 @@ defmodule BlocTheLine.BoardTest do
   describe "add_piece/4 test" do
     setup do
       board = Board.new(10, 10, 1)
-      piece = Pieces.get("L4")
+      piece = Pieces.get(:L4)
 
       # "L4" shape for reference:
       # █
@@ -77,6 +77,35 @@ defmodule BlocTheLine.BoardTest do
       assert {:ok, board2} = Board.add_piece(board1, piece, {3, 2}, @player)
 
       assert Map.get(board2.board_map, {3, 2}) == @player
+    end
+
+    test "8. tests Z5 piece", %{board: board} do
+      # █
+      # █X█
+      #   █
+      # █  █
+      # █X██X█
+      #   █  █    This should not allowed.
+      z5 = Pieces.get(:Z5)
+      assert {:ok, board1} = Board.add_piece(board, z5, {0, 0}, @player)
+      assert {:ok, board2} = Board.add_piece(board1, z5, {3, 3}, @player)
+      assert {:err, _} =
+               Board.add_piece(board2, z5, {0, 3}, @player)
+    end
+
+    test "9. tests P and L4", %{board: board} do
+      #    █
+      # █X█X
+      # ██ ██ This should not allowed.
+      p = Pieces.get(:P)
+      l4 = Pieces.get(:L4)
+
+      newP = p |> Piece.flip(:vertical) |> Piece.rotate(:ccw)
+      newL4 = l4 |> Piece.rotate(:ccw) |> Piece.flip(:vertical)
+
+      assert {:ok, board1} = Board.add_piece(board, newL4, {8,7}, @player)
+      assert {:err, _} = Board.add_piece(board, newP, {5,8}, @player)
+
     end
   end
 end
