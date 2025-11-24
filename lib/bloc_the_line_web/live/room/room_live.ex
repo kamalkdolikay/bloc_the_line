@@ -210,6 +210,7 @@ defmodule BlocTheLineWeb.RoomLive do
   def handle_event("update_position", %{"piece" => piece, "row" => row, "col" => col}, socket) do
     coord = {col, row}
 
+    # Update position in the Rooms module
     Rooms.update_position(
       socket.assigns.room_code,
       socket.assigns.player_id,
@@ -266,6 +267,30 @@ defmodule BlocTheLineWeb.RoomLive do
 
   def handle_info({:host_changed, new_host_id}, socket) do
     {:noreply, assign(socket, :host_id, new_host_id)}
+  end
+
+  def handle_info({:piece_changed, player_id, piece}, socket) do
+    players =
+      Map.update!(socket.assigns.players, player_id, fn p ->
+        Map.put(p, :held_piece, piece)
+      end)
+
+    {:noreply, assign(socket, players: players)}
+  end
+
+  def handle_event("piece_changed", %{"piece" => piece}, socket) do
+    players =
+      Map.update!(socket.assigns.players, socket.assigns.player_id, fn p ->
+        Map.put(p, :held_piece, piece)
+      end)
+
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "room:#{socket.assigns.room_code}",
+      {:piece_changed, socket.assigns.player_id, piece}
+    )
+
+    {:noreply, assign(socket, players: players)}
   end
 
   def handle_info({:piece_placed, player_id, row, col, cells, new_board}, socket) do
