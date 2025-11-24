@@ -156,7 +156,7 @@ box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 
 /* BLOCKUS TILE TEXTURES */
 .blokus-tile {
-  background-image: url("/images/base_tile.png");
+  background-image: url("/images/tiles/base_tile.png");
   background-size: cover;
   background-repeat: no-repeat;
   image-rendering: pixelated; 
@@ -165,28 +165,28 @@ box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 
 /* PLAYER PIECE TEXTURES */
 .p1-tile {
-  background-image: url("/images/blue_piece.png");
+  background-image: url("/images/tiles/blue_piece.png");
   background-size: 100% 100%;
   background-repeat: no-repeat;
   image-rendering: pixelated;
 }
 
 .p2-tile {
-  background-image: url("/images/red_piece.png");
+  background-image: url("/images/tiles/red_piece.png");
   background-size: 100% 100%;
   background-repeat: no-repeat;
   image-rendering: pixelated;
 }
 
 .p3-tile {
-  background-image: url("/images/green_piece.png");
+  background-image: url("/images/tiles/green_piece.png");
   background-size: 100% 100%;
   background-repeat: no-repeat;
   image-rendering: pixelated;
 }
 
 .p4-tile {
-  background-image: url("/images/purple_piece.png");
+  background-image: url("/images/tiles/purple_piece.png");
   background-size: 100% 100%;
   background-repeat: no-repeat;
   image-rendering: pixelated;
