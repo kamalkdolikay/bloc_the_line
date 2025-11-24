@@ -108,6 +108,7 @@
 .moving-block {
   /* background: rgba(220, 38, 38, 0.35); /* semi-transparent red container */
   /* border: 2px solid rgba(139, 92, 246, 0.9);  */
+  opacity: 0.5;
   box-sizing: border-box;
   z-index: 50;
   will-change: transform, width, height;
