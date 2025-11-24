@@ -42,7 +42,21 @@
           <!-- Ready Button -->
           <div class="space-y-3">
             <%= for {id, player} <- @players do %>
-              <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+             <div class={
+                  cond do
+                    player.id == @player_id ->
+                      "flex items-center gap-3 bg-gray-50 rounded-lg p-3 border-4 shadow-md transition transform " <>
+                      case player.color do
+                        1 -> "border-blue-400"
+                        2 -> "border-red-400"
+                        3 -> "border-green-400"
+                        4 -> "border-yellow-400"
+                        _ -> "border-gray-300"
+                      end
+                    true ->
+                      "flex items-center gap-3 bg-gray-50 rounded-lg p-3 border border-gray-200 transition"
+                  end
+                }>
                 <div class={"w-10 h-10 rounded-full flex items-center justify-center text-white font-bold #{
                   case player.color do
                     1 -> "bg-blue-500"
@@ -58,6 +72,17 @@
                   <p class="font-semibold text-gray-800">
                     {player.name}
                     <span class="text-sm text-gray-500">(P{player.color})</span>
+                  </p>
+
+                  <p class="text-xs text-gray-500">
+                    Blocks placed:
+                    {case player.color do
+                       1 -> Map.get(@board.count_map, :p1, 0)
+                       2 -> Map.get(@board.count_map, :p2, 0)
+                       3 -> Map.get(@board.count_map, :p3, 0)
+                       4 -> Map.get(@board.count_map, :p4, 0)
+                       _ -> 0
+                     end}
                   </p>
 
                   <%= if player.id == @player_id do %>
