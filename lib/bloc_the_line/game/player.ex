@@ -33,15 +33,17 @@ defmodule Player do
     ready: false
   ]
 
-  # TODO: start changing stuff in player.ex
   @doc "Create a player; board_location starts at start_location."
-  @spec new(String.t(), coord()) :: t()
-  def new(name, {x, y} = start_location)
+  @spec new(String.t(), non_neg_integer(), coord(), DateTime.t()) :: Player.t()
+  def new(name, color, {x, y} = start_location, joined_at)
       when is_binary(name) and is_integer(x) and is_integer(y) do
     %Player{
+      id: :crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false),
       name: name,
+      color: color,
       start_location: start_location,
-      board_location: start_location
+      board_location: start_location,
+      joined_at: joined_at
     }
   end
 
