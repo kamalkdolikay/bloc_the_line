@@ -54,7 +54,7 @@ const localHooks = {
       // Read corner and last placed from data attributes
       let myCorner = null;
       let lastPlaced = null;
-      
+
       try {
         myCorner = JSON.parse(container.dataset.myCorner || "null");
         lastPlaced = JSON.parse(container.dataset.lastPlaced || "null");
@@ -173,7 +173,7 @@ const localHooks = {
         // Get player color to style tiles correctly
         const playerColor = parseInt(blockEl.dataset.playerColor, 10) || 1;
         const playerTileClass = `p${playerColor}-tile`;
-        
+
         blockEl.innerHTML = "";
         oriented.forEach(([x, y]) => {
           const t = document.createElement("div");
@@ -315,6 +315,11 @@ const localHooks = {
           shapeIndex = (shapeIndex + 1) % SHAPES.length;
           oriented = SHAPES[shapeIndex].cells;
 
+          //notify server of held piece change
+          this.pushEvent("piece_changed", {
+            piece: SHAPES[shapeIndex].name
+          });
+
           console.log(
             "Switched to:",
             SHAPES[shapeIndex].name,
@@ -325,6 +330,11 @@ const localHooks = {
           // prev shape
           shapeIndex = (shapeIndex - 1 + SHAPES.length) % SHAPES.length;
           oriented = SHAPES[shapeIndex].cells;
+
+          // notify server of held piece change
+          this.pushEvent("piece_changed", {
+            piece: SHAPES[shapeIndex].name
+          });
 
           console.log(
             "Switched to:",
