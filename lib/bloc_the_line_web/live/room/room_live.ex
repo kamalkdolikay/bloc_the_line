@@ -132,6 +132,7 @@ defmodule BlocTheLineWeb.RoomLive do
                    Map.get(room_state.player_corners || %{}, player_id, {0, 0})
                  )
                  |> assign(:last_placed_position, Map.get(room_state, :last_placed_position, nil))
+                 |> assign(:timer_seconds, Map.get(room_state, :timer_seconds, 60))
                  |> assign(:assigned_piece, assigned_piece)}
 
               {:error, :room_not_found} ->
@@ -195,7 +196,8 @@ defmodule BlocTheLineWeb.RoomLive do
          |> assign(:game_started, false)
          |> assign(:player_corners, %{})
          |> assign(:my_corner, {0, 0})
-         |> assign(:last_placed_position, nil)}
+         |> assign(:last_placed_position, nil)
+         |> assign(:timer_seconds, 60)}
       end
     end
   end
@@ -317,6 +319,32 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, socket}
   end
 
+  def handle_event("piece_changed", %{"piece" => piece}, socket) do
+    players =
+      Map.update!(socket.assigns.players, socket.assigns.player_id, fn p ->
+        Map.put(p, :held_piece, piece)
+      end)
+
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "room:#{socket.assigns.room_code}",
+      {:piece_changed, socket.assigns.player_id, piece}
+    )
+
+    {:noreply, assign(socket, players: players)}
+  end
+
+  def handle_info({:timer_update, seconds}, socket) do
+    {:noreply, assign(socket, :timer_seconds, seconds)}
+  end
+
+  def handle_info({:game_over, :timeout}, socket) do
+    {:noreply,
+     socket
+     |> put_flash(:info, "Time's up! Game over.")
+     |> assign(:timer_seconds, 0)}
+  end
+
   def handle_info({:player_ready_changed, player_id, ready}, socket) do
     players =
       Map.update!(socket.assigns.players, player_id, fn player -> %{player | ready: ready} end)
@@ -392,21 +420,6 @@ defmodule BlocTheLineWeb.RoomLive do
       Map.update!(socket.assigns.players, player_id, fn p ->
         Map.put(p, :held_piece, piece)
       end)
-
-    {:noreply, assign(socket, players: players)}
-  end
-
-  def handle_event("piece_changed", %{"piece" => piece}, socket) do
-    players =
-      Map.update!(socket.assigns.players, socket.assigns.player_id, fn p ->
-        Map.put(p, :held_piece, piece)
-      end)
-
-    Phoenix.PubSub.broadcast(
-      BlocTheLine.PubSub,
-      "room:#{socket.assigns.room_code}",
-      {:piece_changed, socket.assigns.player_id, piece}
-    )
 
     {:noreply, assign(socket, players: players)}
   end
