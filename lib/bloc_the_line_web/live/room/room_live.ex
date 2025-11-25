@@ -21,8 +21,8 @@ defmodule BlocTheLineWeb.RoomLive do
         if String.trim(player_name || "") == "" do
           {:ok,
            socket
-           |> put_flash(:error, "Please enter your name to join a room")
-           |> push_navigate(to: ~p"/")}
+           |> put_flash(:info, "Please enter your name to join room #{room_code}")
+           |> push_navigate(to: ~p"/?room_code=#{room_code}")}
         else
           case Rooms.join_room(room_code, player_name) do
             {:ok, player_id} ->
