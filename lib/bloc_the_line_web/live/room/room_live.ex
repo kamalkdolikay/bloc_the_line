@@ -140,7 +140,10 @@ defmodule BlocTheLineWeb.RoomLive do
 
       {:error, reason} ->
         IO.inspect(reason, label: "Failed to place piece")
-        {:noreply, socket}
+        # Send error event to frontend to trigger shake animation
+        {:noreply,
+         socket
+         |> push_event("piece_placement_error", %{reason: inspect(reason)})}
     end
   end
 

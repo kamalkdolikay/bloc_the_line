@@ -172,7 +172,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
   def handle_call(:start_game, _from, state) do
     # Assign corners to players based on their colors
     player_corners = assign_corners_to_players(state.players)
-    
+
     # Assign random pieces to all players
     new_pieces =
       state.players
