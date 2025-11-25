@@ -54,7 +54,7 @@ const localHooks = {
       // Read corner and last placed from data attributes
       let myCorner = null;
       let lastPlaced = null;
-      
+
       try {
         myCorner = JSON.parse(container.dataset.myCorner || "null");
         lastPlaced = JSON.parse(container.dataset.lastPlaced || "null");
@@ -75,6 +75,88 @@ const localHooks = {
 
       let tileW = 0;
       let tileH = 0;
+
+      const remotePieces = {};
+
+      const colorFromId = (color) => {
+        switch (color) {
+          case 1:
+            return "#3b82f6";
+          case 2:
+            return "#ef4444";
+          case 3:
+            return "#22c55e";
+          case 4:
+            return "#eab308";
+          default:
+            return "#6b7280";
+        }
+      };
+
+      const renderRemotePiece = ({ player_id, piece, row, col, color }) => {
+        if (!tileW || !tileH) return;
+
+        const shape = SHAPES.find((s) => s.name === piece);
+        if (!shape) return;
+
+        let el = remotePieces[player_id];
+        if (!el) {
+          el = document.createElement("div");
+          el.className = "remote-piece";
+          el.style.position = "absolute";
+          el.style.pointerEvents = "none";
+          remotePieces[player_id] = el;
+        }
+
+        if (!el.parentNode) {
+          container.appendChild(el);
+        }
+
+        const cells = shape.cells;
+        const [anchorX, anchorY] = shape.anchor;
+
+        const xs = cells.map(([x]) => x);
+        const ys = cells.map(([, y]) => y);
+
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+
+        const shapeW = maxX - minX + 1;
+        const shapeH = maxY - minY + 1;
+
+        const anchorCellRow = row;
+        const anchorCellCol = col;
+        const anchorPixelX = anchorCellCol * tileW;
+        const anchorPixelY = anchorCellRow * tileH;
+
+        const boxPixelX = anchorPixelX - (anchorX - minX) * tileW;
+        const boxPixelY = anchorPixelY - (anchorY - minY) * tileH;
+
+        el.style.left = "0";
+        el.style.top = "0";
+        el.style.width = shapeW * tileW + "px";
+        el.style.height = shapeH * tileH + "px";
+        el.style.transform = `translate(${boxPixelX}px, ${boxPixelY}px)`;
+        el.innerHTML = "";
+
+        const fill = colorFromId(color);
+
+        cells.forEach(([x, y]) => {
+          const t = document.createElement("div");
+          t.className = "remote-piece-tile";
+          t.style.position = "absolute";
+          t.style.left = (x - minX) * tileW + "px";
+          t.style.top = (y - minY) * tileH + "px";
+          t.style.width = tileW + "px";
+          t.style.height = tileH + "px";
+          t.style.backgroundColor = fill;
+          t.style.opacity = "0.6";
+          t.style.borderRadius = "2px";
+          el.appendChild(t);
+        });
+      };
 
       const broadcastPosition = () => {
         this.pushEvent("update_position", {
@@ -173,7 +255,7 @@ const localHooks = {
         // Get player color to style tiles correctly
         const playerColor = parseInt(blockEl.dataset.playerColor, 10) || 1;
         const playerTileClass = `p${playerColor}-tile`;
-        
+
         blockEl.innerHTML = "";
         oriented.forEach(([x, y]) => {
           const t = document.createElement("div");
@@ -315,6 +397,11 @@ const localHooks = {
           shapeIndex = (shapeIndex + 1) % SHAPES.length;
           oriented = SHAPES[shapeIndex].cells;
 
+          //notify server of held piece change
+          this.pushEvent("piece_changed", {
+            piece: SHAPES[shapeIndex].name
+          });
+
           console.log(
             "Switched to:",
             SHAPES[shapeIndex].name,
@@ -325,6 +412,11 @@ const localHooks = {
           // prev shape
           shapeIndex = (shapeIndex - 1 + SHAPES.length) % SHAPES.length;
           oriented = SHAPES[shapeIndex].cells;
+
+          // notify server of held piece change
+          this.pushEvent("piece_changed", {
+            piece: SHAPES[shapeIndex].name
+          });
 
           console.log(
             "Switched to:",
@@ -382,28 +474,6 @@ const localHooks = {
 
         }
 
-        // Listen for game_started events to set initial position to assigned corner
-        this.handleEvent("game_started", ({ col, row }) => {
-          console.log(`Game started! Setting spawn position to assigned corner (${col}, ${row})`);
-          anchorCol = col;
-          anchorRow = row;
-          renderShape(false);
-        });
-
-        // Listen for piece_placed events from the server to update spawn position
-        this.handleEvent("piece_placed", ({ col, row }) => {
-          console.log(`Piece placed at (${col}, ${row}), updating spawn position`);
-          anchorCol = col;
-          anchorRow = row;
-          renderShape(false);
-        });
-
-        // receives other players' positions
-        this.handleEvent("position_updated", ({ player_id, piece, row, col, color }) => {
-          // TODO: render other players somehow
-          console.log(`[TODO] player ${player_id} (color ${color}): ${piece} at (${row}, ${col})`);
-        });
-
         if (moved || ["]", "["].includes(key)) {
           e.preventDefault();
           renderShape(moved); // sets transition only if moved
@@ -419,6 +489,27 @@ const localHooks = {
       // measure initially after layout
       requestAnimationFrame(measure);
 
+      // Listen for game_started events to set initial position to assigned corner
+      this.handleEvent("game_started", ({ col, row }) => {
+        console.log(`Game started! Setting spawn position to assigned corner (${col}, ${row})`);
+        anchorCol = col;
+        anchorRow = row;
+        renderShape(false);
+      });
+
+        // Listen for piece_placed events from the server to update spawn position
+      this.handleEvent("piece_placed", ({ col, row }) => {
+        console.log(`Piece placed at (${col}, ${row}), updating spawn position`);
+        anchorCol = col;
+        anchorRow = row;
+        renderShape(false);
+      });
+
+      this.handleEvent("position_updated", (payload) => {
+        console.log("[position_updated] received:", payload);
+        renderRemotePiece(payload);
+      });
+    
       window.addEventListener("keydown", keyHandler);
 
       this.destroy = () => {
@@ -426,6 +517,11 @@ const localHooks = {
         try {
           ro.disconnect();
         } catch (e) { }
+        Object.values(remotePieces).forEach((el) => {
+          try {
+            el.remove();
+          } catch (e) { }
+        });
       };
     },
     updated() {

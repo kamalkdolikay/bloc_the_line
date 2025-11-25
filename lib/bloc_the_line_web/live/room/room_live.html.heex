@@ -81,13 +81,27 @@
           <!-- Ready Button -->
           <div class="space-y-3">
             <%= for {id, player} <- @players do %>
-              <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+             <div class={
+                  cond do
+                    player.id == @player_id ->
+                      "flex items-center gap-3 bg-gray-50 rounded-lg p-3 border-4 shadow-md transition transform " <>
+                      case player.color do
+                        1 -> "border-blue-400"
+                        2 -> "border-red-400"
+                        3 -> "border-green-400"
+                        4 -> "border-yellow-400"
+                        _ -> "border-gray-300"
+                      end
+                    true ->
+                      "flex items-center gap-3 bg-gray-50 rounded-lg p-3 border border-gray-200 transition"
+                  end
+                }>
                 <div class={"w-10 h-10 rounded-full flex items-center justify-center text-white font-bold #{
                   case player.color do
                     1 -> "bg-blue-500"
                     2 -> "bg-red-500"
                     3 -> "bg-green-500"
-                    4 -> "bg-yellow-500"
+                    4 -> "bg-purple-500"
                     _ -> "bg-gray-500"
                   end
                 }"}>
@@ -97,6 +111,17 @@
                   <p class="font-semibold text-gray-800">
                     {player.name}
                     <span class="text-sm text-gray-500">(P{player.color})</span>
+                  </p>
+
+                  <p class="text-xs text-gray-500">
+                    Blocks placed:
+                    {case player.color do
+                       1 -> Map.get(@board.count_map, :p1, 0)
+                       2 -> Map.get(@board.count_map, :p2, 0)
+                       3 -> Map.get(@board.count_map, :p3, 0)
+                       4 -> Map.get(@board.count_map, :p4, 0)
+                       _ -> 0
+                     end}
                   </p>
 
                   <%= if player.id == @player_id do %>
@@ -138,9 +163,70 @@
       <!-- Game Area -->
       <div class="lg:col-span-3">
         <%= if @game_started do %>
-          <div class="bg-white rounded-lg shadow-lg p-8">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">Blokus Board</h2>
+          <div class="bg-white rounded-lg shadow-lg p-8 relative pt-20">
+            <!-- Wrapper so cards & board share the same positioning context -->
+  <div class="inline-block mx-auto">
 
+<!-- PLAYER CARDS (one per corner) -->
+<%= for {_id, player} <- @players do %>
+  <% position_classes =
+    case player.color do
+      1 -> "top-0 left-0"
+      2 -> "top-0 right-0"
+      3 -> "bottom-0 left-0"
+      4 -> "bottom-0 right-0"
+      _ -> "top-0 left-0"
+    end
+  %>
+
+  <% icon =
+    case player.color do
+      1 -> "/images/icons/blue_wizard.png"
+      2 -> "/images/icons/red_wizard.png"
+      3 -> "/images/icons/green_wizard.png"
+      4 -> "/images/icons/purple_wizard.png"
+      _ -> "/images/icons/default_wizard.png"
+    end
+  %>
+
+  <div
+    class={
+      "player-card absolute #{position_classes} m-2 " <>
+      "bg-white/90 rounded-lg shadow-md px-3 py-2 flex items-center gap-2 z-50"
+    }
+  >
+    <!-- Wizard Icon -->
+    <img
+      src={icon}
+      alt="Player Icon"
+      class="w-10 h-10 object-cover shadow"
+    />
+
+    <!-- Name, Score, Held Piece -->
+    <div class="text-xs leading-tight">
+      <div class="font-semibold text-gray-800">
+        {player.name}
+        <span class="ml-1 text-[10px] text-gray-500">(P{player.color})</span>
+      </div>
+
+      <div class="text-gray-700">
+        Score:
+        <span class="font-semibold">
+          {Map.get(player, :score, 0)}
+        </span>
+      </div>
+
+      <div class="text-gray-700">
+        Held:
+        <span class="font-semibold">
+          {Map.get(player, :held_piece, "None")}
+        </span>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+    </div>
             <div
               id="moving-block-container"
               phx-hook="MovingBlock"

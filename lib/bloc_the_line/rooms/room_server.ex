@@ -312,6 +312,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
       {:position_updated, player_id, piece, coord}
     )
 
+
     {:reply, :ok, new_state}
   end
 
