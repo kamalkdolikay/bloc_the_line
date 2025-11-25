@@ -61,10 +61,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
       # ref to player_process => player_id
       monitors: %{},
       # player_id => ref to player_process (backwards map for lookup)
-      player_refs: %{},
-      # TODO: will take this out as each player will have this information instead
-      # player_id => %{piece: :F, coord: {3, 5}}
-      player_positions: %{}
+      player_refs: %{}
     }
 
     Logger.info("Room #{room_code} created")
@@ -213,22 +210,31 @@ defmodule BlocTheLine.Rooms.RoomServer do
     # Use Board.add_piece with validation
     case Board.add_piece(state.board, piece, {col, row}, player_atom) do
       {:ok, new_board} ->
-        new_state = %{state | board: new_board}
 
-        # TODO: Update player points/score
+        case Map.fetch(state.players, player_id) do
+          {:ok, player} ->
+            new_player = Player.add_points_by_piece(player, piece)
+            new_state = %{state |
+              board: new_board,
+              players: Map.put(state.players, player_id, new_player)
+            }
 
-        # TODO: Check player struct broadcasts
-        Phoenix.PubSub.broadcast(
-          BlocTheLine.PubSub,
-          "room:#{state.room_code}",
-          {:piece_placed, player_id, row, col, cells, new_board}
-        )
+            Phoenix.PubSub.broadcast(
+              BlocTheLine.PubSub,
+              "room:#{state.room_code}",
+              {:piece_placed, player_id, row, col, cells, new_board}
+            )
 
-        Logger.info(
-          "#{player_id} (#{player_atom}) placed piece at (#{row}, #{col}) in room #{state.room_code}"
-        )
+            Logger.info(
+              "#{player_id} (#{player_atom}) placed piece at (#{row}, #{col}) in room #{state.room_code}"
+            )
 
-        {:reply, {:ok, new_board}, new_state}
+            {:reply, {:ok, new_board}, new_state}
+
+          _ ->
+            # Ignore error for player non existent
+            {:reply, {:ok, state.board}, state}
+        end
 
       {:err, _board} ->
         Logger.warning(
@@ -268,21 +274,26 @@ defmodule BlocTheLine.Rooms.RoomServer do
 
   @impl true
   def handle_call({:update_position, player_id, piece, coord}, _from, state) do
-    new_positions =
-      Map.put(state.player_positions, player_id, %{
-        piece: piece,
-        coord: coord
-      })
+    case Map.fetch(state.player, player_id) do
+      {:ok, player} ->
+        new_player = player
+          |> Player.update_board_location(coord)
+          |> Player.set_current_piece(piece)
 
-    new_state = %{state | player_positions: new_positions}
+        new_state = %{state | players: Map.put(state.players, player_id, new_player)}
 
-    Phoenix.PubSub.broadcast(
-      BlocTheLine.PubSub,
-      "room:#{state.room_code}",
-      {:position_updated, player_id, piece, coord}
-    )
+        Phoenix.PubSub.broadcast(
+          BlocTheLine.PubSub,
+          "room:#{state.room_code}",
+          {:position_updated, player_id, piece, coord}
+        )
 
-    {:reply, :ok, new_state}
+        {:reply, :ok, new_state}
+
+      _ ->
+        # Ignore errors, very frequent case
+        {:reply, :ok, state}
+    end
   end
 
   @impl true
