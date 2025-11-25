@@ -5,21 +5,27 @@
     <p style="text-align: center; margin-bottom: 1.5rem;">Blokus Multiplayer</p>
 
     <%= if @flash[:error] do %>
-      <div role="alert" style="border:1px solid #fca5a5; background:#fff1f2; color:#991b1b; padding:0.75rem; margin-bottom:1rem; border-radius:4px;">
+      <div
+        role="alert"
+        style="border:1px solid #fca5a5; background:#fff1f2; color:#991b1b; padding:0.75rem; margin-bottom:1rem; border-radius:4px;"
+      >
         <strong style="display:block; margin-bottom:0.25rem;">Error</strong>
         {@flash[:error]}
       </div>
     <% end %>
 
     <%= if @flash[:info] do %>
-      <div role="status" style="border:1px solid #bbf7d0; background:#f0fdf4; color:#14532d; padding:0.75rem; margin-bottom:1rem; border-radius:4px;">
+      <div
+        role="status"
+        style="border:1px solid #bbf7d0; background:#f0fdf4; color:#14532d; padding:0.75rem; margin-bottom:1rem; border-radius:4px;"
+      >
         <strong style="display:block; margin-bottom:0.25rem;">Notice</strong>
-        <%= @flash[:info] %>
+        {@flash[:info]}
       </div>
     <% end %>
     <!-- Public rooms list: clicking Join will prefill the lobby form and trigger browser validation -->
     <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Public Rooms</h2>
-    
+
     <div style="margin-bottom: 1rem;">
       <%= if Enum.empty?(@public_rooms || []) do %>
         <p style="color: #666;">No public rooms right now.</p>
@@ -33,7 +39,7 @@
               <strong style="display:block; margin-bottom:0.25rem;">Notice</strong> {@prefill_notice}
             </div>
           <% end %>
-          
+
           <%= for room <- @public_rooms do %>
             <div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem; border:1px solid #ddd; gap:0.75rem; flex-wrap:nowrap;">
               <div style="min-width:0; flex:1; display:flex; flex-direction:column;">
@@ -42,7 +48,7 @@
                 </strong>
                 <div style="font-size:0.85rem; color:#666;">Players: {length(room.players)}</div>
               </div>
-              
+
               <div style="white-space:nowrap;">
                 <button
                   id={"join_public_#{room.room_code}"}
@@ -61,11 +67,10 @@
         </div>
       <% end %>
     </div>
-    
+
     <div style="margin-bottom: 2rem;">
       <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Create New Room</h2>
 
-      
       <form phx-submit="create_room">
         <input
           type="text"
@@ -85,11 +90,10 @@
         </button>
       </form>
     </div>
-    
+
     <div>
       <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Join Existing Room</h2>
 
-      
       <form phx-submit="join_room">
         <input
           type="text"

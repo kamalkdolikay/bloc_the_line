@@ -46,7 +46,11 @@ defmodule BlocTheLineWeb.LobbyLive do
     # Allow empty player name; room will generate a guest name if none provided.
     case Rooms.create_room() do
       {:ok, room_code} ->
-        to = if player_name == "", do: ~p"/room/#{room_code}", else: ~p"/room/#{room_code}?name=#{URI.encode_www_form(player_name)}"
+        to =
+          if player_name == "",
+            do: ~p"/room/#{room_code}",
+            else: ~p"/room/#{room_code}?name=#{URI.encode_www_form(player_name)}"
+
         {:noreply, push_navigate(socket, to: to)}
 
       {:error, _} ->
@@ -66,7 +70,11 @@ defmodule BlocTheLineWeb.LobbyLive do
     if room_code == "" do
       {:noreply, put_flash(socket, :error, "Please enter a room code")}
     else
-      to = if player_name == "", do: ~p"/room/#{room_code}", else: ~p"/room/#{room_code}?name=#{URI.encode_www_form(player_name)}"
+      to =
+        if player_name == "",
+          do: ~p"/room/#{room_code}",
+          else: ~p"/room/#{room_code}?name=#{URI.encode_www_form(player_name)}"
+
       {:noreply, push_navigate(socket, to: to)}
     end
   end

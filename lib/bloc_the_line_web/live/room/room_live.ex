@@ -13,7 +13,8 @@ defmodule BlocTheLineWeb.RoomLive do
     else
       if connected?(socket) do
         # If no name provided, generate a guest name and join the room.
-        chosen_name = if String.trim(player_name) == "", do: generate_guest_name(), else: player_name
+        chosen_name =
+          if String.trim(player_name) == "", do: generate_guest_name(), else: player_name
 
         case Rooms.join_room(room_code, chosen_name) do
           {:ok, player_id} ->
@@ -49,8 +50,8 @@ defmodule BlocTheLineWeb.RoomLive do
              |> assign(:public, Map.get(room_state, :public, false))
              |> assign(:board, board)
              |> assign(:pieces, pieces)
-               |> assign(:copied, false)
-               |> assign(:editing_name, false)}
+             |> assign(:copied, false)
+             |> assign(:editing_name, false)}
 
           {:error, :room_not_found} ->
             {:ok, socket |> put_flash(:error, "Room not found") |> push_navigate(to: ~p"/")}
@@ -203,7 +204,9 @@ defmodule BlocTheLineWeb.RoomLive do
 
   # Handle remote player name change broadcasts
   def handle_info({:player_name_changed, player_id, new_name}, socket) do
-    players = Map.update(socket.assigns.players, player_id, nil, fn p -> Map.put(p, :name, new_name) end)
+    players =
+      Map.update(socket.assigns.players, player_id, nil, fn p -> Map.put(p, :name, new_name) end)
+
     socket = assign(socket, :players, players)
 
     socket =
