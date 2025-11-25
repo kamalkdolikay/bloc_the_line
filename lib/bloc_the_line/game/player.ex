@@ -50,7 +50,7 @@ defmodule Player do
   @doc "Update avatar location on board."
   @spec update_board_location(t(), coord()) :: t()
   def update_board_location(%Player{} = player, {x, y})
-      when is_integer(x) and is_integer(y) do
+      when is_integer(x) and is_integer(y) and x >= 0 and y >= 0 do
     %Player{player | board_location: {x, y}}
   end
 

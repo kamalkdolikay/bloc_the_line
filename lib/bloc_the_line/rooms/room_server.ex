@@ -51,7 +51,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
   def init(room_code) do
     state = %{
       room_code: room_code,
-      # TODO: change this to a data structure that uses the Player struct instead of maps
+      # %{player_id => Player.t()}
       players: %{},
       board: Board.new(20, 20, 4),
       created_at: DateTime.utc_now(),
@@ -76,41 +76,36 @@ defmodule BlocTheLine.Rooms.RoomServer do
     if map_size(state.players) >= 4 do
       {:reply, {:error, :room_full}, state}
     else
-      player_id = generate_player_id()
-      player_color = state.next_player_color
-
-      # TODO: change all manual new players to use the Player module struct
-      new_player = %{
-        id: player_id,
-        name: player_name,
-        color: player_color,
-        ready: false,
-        joined_at: DateTime.utc_now()
-      }
+      new_player = Player.new(
+        player_name,
+        state.next_player_color,
+        {0, 0},        # TODO: add that players' corner
+        DateTime.utc_now()
+      )
 
       # Monitor the caller process so we can remove the player on disconnect
       ref = Process.monitor(from_pid)
 
       Logger.debug(
-        "Monitoring pid=#{inspect(from_pid)} ref=#{inspect(ref)} for player=#{player_id}"
+        "Monitoring pid=#{inspect(from_pid)} ref=#{inspect(ref)} for player=#{new_player.id}"
       )
 
-      # record the monitor ref -> player_id and player_id -> ref so we can cleanup on DOWN
-      monitors = Map.put(state.monitors, ref, player_id)
-      player_refs = Map.put(state.player_refs, player_id, ref)
+      # record the monitor ref -> new_player.id and new_player.id -> ref so we can cleanup on DOWN
+      monitors = Map.put(state.monitors, ref, new_player.id)
+      player_refs = Map.put(state.player_refs, new_player.id, ref)
 
       new_state =
         state
-        |> put_in([:players, player_id], new_player)
+        |> put_in([:players, new_player.id], new_player)
         # cycle the color
-        |> Map.put(:next_player_color, rem(player_color, 4) + 1)
+        |> Map.put(:next_player_color, rem(new_player.color, 4) + 1)
         |> Map.put(:monitors, monitors)
         |> Map.put(:player_refs, player_refs)
 
       # Assign host_id if this is the first player
       new_state =
         if map_size(state.players) == 0 do
-          Map.put(new_state, :host_id, player_id)
+          Map.put(new_state, :host_id, new_player.id)
         else
           new_state
         end
@@ -122,10 +117,10 @@ defmodule BlocTheLine.Rooms.RoomServer do
       )
 
       Logger.info(
-        "Player #{player_name} (#{player_id}) joined room #{state.room_code} as color #{player_color}"
+        "Player #{player_name} (#{new_player.id}) joined room #{state.room_code} as color #{new_player.color}"
       )
 
-      {:reply, {:ok, player_id}, new_state}
+      {:reply, {:ok, new_player.id}, new_state}
     end
   end
 
@@ -212,6 +207,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
     player_atom = color_to_player(player_color)
 
     # Convert cells to a Piece struct
+    # TODO: Maybe use a function to transform into the pre chosen pieces
     piece = cells_to_piece(cells)
 
     # Use Board.add_piece with validation
@@ -219,7 +215,9 @@ defmodule BlocTheLine.Rooms.RoomServer do
       {:ok, new_board} ->
         new_state = %{state | board: new_board}
 
-        # TODO: Change state of the player that executed the move to add a piece
+        # TODO: Update player points/score
+
+        # TODO: Check player struct broadcasts
         Phoenix.PubSub.broadcast(
           BlocTheLine.PubSub,
           "room:#{state.room_code}",
@@ -321,10 +319,6 @@ defmodule BlocTheLine.Rooms.RoomServer do
 
   defp via_tuple(room_code) do
     {:via, Registry, {BlocTheLine.RoomRegistry, room_code}}
-  end
-
-  defp generate_player_id do
-    :crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false)
   end
 
   # Convert player color (1-4) to player atom (:p1, :p2, :p3, :p4)
