@@ -7,7 +7,7 @@ defmodule BlocTheLineWeb.RoomLive do
     room_code = params["room_code"]
     # Decode URL-encoded player name (spaces are encoded as + in query strings)
     # Replace + with spaces first, then decode any %-encoded characters
-    player_name = 
+    player_name =
       (params["name"] || "")
       |> String.replace("+", " ")
       |> URI.decode()
