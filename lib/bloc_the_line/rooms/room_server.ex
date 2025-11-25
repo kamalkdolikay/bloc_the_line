@@ -274,7 +274,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
 
   @impl true
   def handle_call({:update_position, player_id, piece, coord}, _from, state) do
-    case Map.fetch(state.player, player_id) do
+    case Map.fetch(state.players, player_id) do
       {:ok, player} ->
         new_player = player
           |> Player.update_board_location(coord)
