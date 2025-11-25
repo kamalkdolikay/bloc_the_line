@@ -51,7 +51,13 @@ defmodule BlocTheLineWeb.RoomLive do
              |> assign(:board, board)
              |> assign(:pieces, pieces)
              |> assign(:copied, false)
-             |> assign(:editing_name, false)}
+             |> assign(:editing_name, false)
+             |> assign(:player_color, Map.get(room_state.players[player_id] || %{}, :color, 1))
+             |> assign(:host_id, Map.get(room_state, :host_id))
+             |> assign(:game_started, Map.get(room_state, :game_started, false))
+             |> assign(:player_corners, Map.get(room_state, :player_corners, %{}))
+             |> assign(:my_corner, Map.get(room_state, :my_corner, {0, 0}))
+             |> assign(:last_placed_position, Map.get(room_state, :last_placed_position, nil))}
 
           {:error, :room_not_found} ->
             {:ok, socket |> put_flash(:error, "Room not found") |> push_navigate(to: ~p"/")}
@@ -89,7 +95,12 @@ defmodule BlocTheLineWeb.RoomLive do
          |> assign(:pieces, [])
          |> assign(:public, false)
          |> assign(:copied, false)
-         |> assign(:editing_name, false)}
+         |> assign(:editing_name, false)
+         |> assign(:host_id, nil)
+         |> assign(:game_started, false)
+         |> assign(:player_corners, %{})
+         |> assign(:my_corner, {0, 0})
+         |> assign(:last_placed_position, nil)}
       end
     end
   end
@@ -224,7 +235,18 @@ defmodule BlocTheLineWeb.RoomLive do
 
   # Player joined/left handlers
   def handle_info({:player_joined, player}, socket) do
-    {:noreply, assign(socket, :players, Map.put(socket.assigns.players, player.id, player))}
+    players = Map.put(socket.assigns.players, player.id, player)
+
+    socket = assign(socket, :players, players)
+
+    socket =
+      if socket.assigns.player_id == player.id do
+        assign(socket, :player_color, Map.get(player, :color, socket.assigns.player_color || 1))
+      else
+        socket
+      end
+
+    {:noreply, socket}
   end
 
   def handle_info({:public_changed, public}, socket) do

@@ -141,22 +141,6 @@
           <div class="bg-white rounded-lg shadow-lg p-8">
             <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">Blokus Board</h2>
 
-<<<<<<< HEAD
-          <div
-            id="moving-block-container"
-            phx-hook="MovingBlock"
-            data-pieces={Jason.encode!(@pieces)}
-            data-rows="20"
-            data-cols="20"
-            style="position: relative; display: inline-block;"
-          >
-            <.blokus_board board={@board} />
-            <div class="moving-block" data-row="0" data-col="0"></div>
-            <!-- leave in for use with JS measurements -->
-            <div
-              class="blokus-tile w-8 h-8"
-              style="position: absolute; opacity: 0; pointer-events: none;"
-=======
             <div
               id="moving-block-container"
               phx-hook="MovingBlock"
@@ -164,18 +148,27 @@
               data-rows="20"
               data-cols="20"
               data-my-corner={Jason.encode!(Tuple.to_list(@my_corner))}
-              data-last-placed={if @last_placed_position, do: Jason.encode!(Tuple.to_list(@last_placed_position)), else: "null"}
+              data-last-placed={
+                if @last_placed_position,
+                  do: Jason.encode!(Tuple.to_list(@last_placed_position)),
+                  else: "null"
+              }
               style="position: relative; display: inline-block;"
->>>>>>> origin/coda/feature-guests-joining
             >
               <.blokus_board board={@board} />
-              <div class="moving-block" data-row="0" data-col="0" data-player-color={@player_color}></div>
+              <div
+                class="moving-block"
+                data-row="0"
+                data-col="0"
+                data-player-color={@player_color}
+              >
+              </div>
               
-              <!-- Corner indicators for each player -->
+<!-- Corner indicators for each player -->
               <%= for {player_id, {col, row}} <- @player_corners do %>
                 <% player = @players[player_id] %>
                 <%= if player do %>
-                  <div 
+                  <div
                     class="corner-marker"
                     style={
                       "position: absolute; " <>
@@ -204,12 +197,12 @@
                       "pointer-events: none; z-index: 5;"
                     }
                   >
-                    P<%= player.color %>
+                    P{player.color}
                   </div>
                 <% end %>
               <% end %>
               
-              <!-- leave in for use with JS measurements -->
+<!-- leave in for use with JS measurements -->
               <div
                 class="blokus-tile w-8 h-8"
                 style="position: absolute; opacity: 0; pointer-events: none;"
@@ -227,7 +220,9 @@
           <div class="bg-white rounded-lg shadow-lg p-8">
             <div class="text-center py-12">
               <h2 class="text-2xl font-bold text-gray-800 mb-4">Waiting for game to start...</h2>
-              <p class="text-gray-600">The host will start the game when all players are ready.</p>
+              <p class="text-gray-600">
+                The host will start the game when all players are ready.
+              </p>
             </div>
           </div>
         <% end %>
