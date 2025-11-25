@@ -78,6 +78,14 @@ defmodule BlocTheLine.Rooms do
     RoomServer.place_piece(room_code, player_id, row, col, cells)
   end
 
+  # updates the players position
+  def update_position(room_code, player_id, piece, coord) do
+    case room_exists?(room_code) do
+      true -> RoomServer.update_position(room_code, player_id, piece, coord)
+      false -> {:error, :room_not_found}
+    end
+  end
+
   def get_board(room_code) do
     RoomServer.get_board(room_code)
   end
@@ -99,5 +107,14 @@ defmodule BlocTheLine.Rooms do
     :crypto.strong_rand_bytes(3)
     |> Base.encode16()
     |> String.slice(0, 6)
+  end
+
+  # Sets the room as ready
+  def set_ready(room_code, player_id, ready) do
+    RoomServer.set_ready(room_code, player_id, ready)
+  end
+
+  def start_game(room_code) do
+    RoomServer.start_game(room_code)
   end
 end

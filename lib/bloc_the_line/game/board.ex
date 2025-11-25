@@ -46,7 +46,7 @@ defmodule Board do
 
   # List of referential points used to calculated points adjacent to a coordinate.
   # E.g. {x + 0, y + 1} is adjacent of {x, y}
-  @adj_coord [{0, 1}, {0, -1}, {1, 1}, {-1, 0}]
+  @adj_coord [{0, 1}, {0, -1}, {1, 0}, {-1, 0}]
 
   @spec new(integer(), integer(), 2..4) :: Board.t()
   def new(width, height, player_count) do
@@ -63,20 +63,21 @@ defmodule Board do
   Checks the piece can be placed on the selected coordinate.
 
   If it is player's first attempt, check the placement of a piece is within the board,
-  does not overlap with other placed pieces, and is placed at the corner.
+  does not overlap with other placed pieces, and is placed at the player's assigned corner.
 
   If it is not the player's first attempt, check the placement of a piece is within the board,
   does not overlap with other placed pieces, does not touch same player's edge, and is connected at least one corner of same player piece.
   """
-  @spec can_place?(Board.t(), Piece.t(), coordinate(), player()) :: validation_result()
-  def can_place?(board, piece, coord, player) do
+  @spec can_place?(Board.t(), Piece.t(), coordinate(), player(), coordinate() | nil) ::
+          validation_result()
+  def can_place?(board, piece, coord, player, player_corner \\ nil) do
     moved_piece = Piece.transform(piece, &coord_add(&1, coord))
     first_attempt? = Map.get(board.count_map, player, 0) == 0
 
     if first_attempt? do
       with :ok <- within_board(board, moved_piece),
            :ok <- no_overlap(board, moved_piece),
-           :ok <- corner_placement(board, moved_piece) do
+           :ok <- corner_placement(board, moved_piece, player_corner) do
         :ok
       end
     else
@@ -94,9 +95,9 @@ defmodule Board do
 
   First checks if the placement is valid. If valid, update Board(Add cells of piece to board_map and increase placement count of player in count_map)
   """
-  @spec add_piece(Board.t(), Piece.t(), coordinate(), player()) :: Board.t()
-  def add_piece(board, piece, coord, player) do
-    case can_place?(board, piece, coord, player) do
+  @spec add_piece(Board.t(), Piece.t(), coordinate(), player(), coordinate() | nil) :: Board.t()
+  def add_piece(board, piece, coord, player, player_corner \\ nil) do
+    case can_place?(board, piece, coord, player, player_corner) do
       :ok ->
         moved_piece = Piece.transform(piece, &coord_add(&1, coord))
 
@@ -181,14 +182,14 @@ defmodule Board do
     end)
   end
 
-  # Checks if the piece is placed at the corner for first attempt.
-  # Returns :ok when it is placed at the corner. Otherwise {:error, :first_attempt_corner}
-  @spec corner_placement(Board.t(), Piece.t()) :: validation_result()
-  defp corner_placement(%Board{} = board, %Piece{corners: corners}) do
-    board_corners = board_corners(board)
+  # Checks if the piece is placed at the correct corner for first attempt.
+  # If player_corner is provided, validates against that specific corner.
+  @spec corner_placement(Board.t(), Piece.t(), coordinate() | nil) :: validation_result()
+  defp corner_placement(%Board{} = board, %Piece{corners: corners}, player_corner) do
+    valid_corners = if player_corner, do: [player_corner], else: board_corners(board)
 
     Enum.reduce_while(corners, {:error, :first_attempt_corner}, fn coord, _acc ->
-      if coord in board_corners do
+      if coord in valid_corners do
         {:halt, :ok}
       else
         {:cont, {:error, :first_attempt_corner}}
