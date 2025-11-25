@@ -5,7 +5,12 @@ defmodule BlocTheLineWeb.RoomLive do
 
   def mount(params, _session, socket) do
     room_code = params["room_code"]
-    player_name = params["name"] || ""
+    # Decode URL-encoded player name (spaces are encoded as + in query strings)
+    # Replace + with spaces first, then decode any %-encoded characters
+    player_name = 
+      (params["name"] || "")
+      |> String.replace("+", " ")
+      |> URI.decode()
 
     # Guard against missing room codes (e.g. /room without code).
     if room_code in [nil, ""] do
