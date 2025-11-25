@@ -45,10 +45,30 @@ const localHooks = {
       if (!blockEl || !tileEl) return;
 
       const SHAPES = JSON.parse(container.dataset.pieces);
+      const assignedPieceName = container.dataset.assignedPiece;
 
+      // Find the index of the assigned piece, or default to 0
       let shapeIndex = 0;
+      if (assignedPieceName) {
+        const foundIndex = SHAPES.findIndex((shape) => shape.name === assignedPieceName);
+        if (foundIndex !== -1) {
+          shapeIndex = foundIndex;
+        }
+      }
+
       // current oriented cells - keep relative to anchor at [0,0]
       let oriented = SHAPES[shapeIndex].cells;
+      
+      // Helper function to update piece when assigned by server
+      const updateAssignedPiece = (pieceName) => {
+        const foundIndex = SHAPES.findIndex((shape) => shape.name === pieceName);
+        if (foundIndex !== -1) {
+          shapeIndex = foundIndex;
+          oriented = SHAPES[shapeIndex].cells;
+          renderShape(false);
+          console.log("Assigned new piece:", pieceName);
+        }
+      };
 
       // Initialize anchor position from corner or last placed position
       // Read corner and last placed from data attributes
@@ -392,38 +412,6 @@ const localHooks = {
             }
           );
           return;
-        } else if (key === "]") {
-          // next shape
-          shapeIndex = (shapeIndex + 1) % SHAPES.length;
-          oriented = SHAPES[shapeIndex].cells;
-
-          //notify server of held piece change
-          this.pushEvent("piece_changed", {
-            piece: SHAPES[shapeIndex].name
-          });
-
-          console.log(
-            "Switched to:",
-            SHAPES[shapeIndex].name,
-            "Anchor:",
-            SHAPES[shapeIndex].anchor
-          );
-        } else if (key === "[") {
-          // prev shape
-          shapeIndex = (shapeIndex - 1 + SHAPES.length) % SHAPES.length;
-          oriented = SHAPES[shapeIndex].cells;
-
-          // notify server of held piece change
-          this.pushEvent("piece_changed", {
-            piece: SHAPES[shapeIndex].name
-          });
-
-          console.log(
-            "Switched to:",
-            SHAPES[shapeIndex].name,
-            "Anchor:",
-            SHAPES[shapeIndex].anchor
-          );
         } else if (key === " " || key === "spacebar") {
           // handle placing the piece
           e.preventDefault();
@@ -474,7 +462,7 @@ const localHooks = {
 
         }
 
-        if (moved || ["]", "["].includes(key)) {
+        if (moved) {
           e.preventDefault();
           renderShape(moved); // sets transition only if moved
         }
@@ -508,6 +496,10 @@ const localHooks = {
       this.handleEvent("position_updated", (payload) => {
         console.log("[position_updated] received:", payload);
         renderRemotePiece(payload);
+      });
+
+      this.handleEvent("piece_assigned", ({ piece_name }) => {
+        updateAssignedPiece(piece_name);
       });
     
       window.addEventListener("keydown", keyHandler);

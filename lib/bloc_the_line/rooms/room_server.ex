@@ -1,6 +1,7 @@
 defmodule BlocTheLine.Rooms.RoomServer do
   use GenServer
   require Logger
+  alias Pieces
 
   def start_link(room_code) do
     GenServer.start_link(__MODULE__, room_code, name: via_tuple(room_code))
@@ -47,6 +48,10 @@ defmodule BlocTheLine.Rooms.RoomServer do
     GenServer.call(via_tuple(room_code), {:update_position, player_id, piece, coord})
   end
 
+  def get_assigned_piece(room_code, player_id) do
+    GenServer.call(via_tuple(room_code), {:get_assigned_piece, player_id})
+  end
+
   @impl true
   def init(room_code) do
     state = %{
@@ -64,7 +69,9 @@ defmodule BlocTheLine.Rooms.RoomServer do
       # player_id => {col, row} corner assignment
       player_corners: %{},
       # player_id => %{piece: :F, coord: {3, 5}}
-      player_positions: %{}
+      player_positions: %{},
+      # player_id => piece_name (e.g. "L4")
+      player_pieces: %{}
     }
 
     Logger.info("Room #{room_code} created")
@@ -114,6 +121,24 @@ defmodule BlocTheLine.Rooms.RoomServer do
           new_state
         end
 
+      # Assign a random piece if game has started
+      new_state =
+        if new_state.game_started do
+          random_piece = Pieces.random_starting_piece_name()
+          new_pieces = Map.put(new_state.player_pieces, player_id, random_piece)
+          new_state = %{new_state | player_pieces: new_pieces}
+
+          Phoenix.PubSub.broadcast(
+            BlocTheLine.PubSub,
+            "room:#{state.room_code}",
+            {:piece_assigned, player_id, random_piece}
+          )
+
+          new_state
+        else
+          new_state
+        end
+
       Phoenix.PubSub.broadcast(
         BlocTheLine.PubSub,
         "room:#{state.room_code}",
@@ -147,7 +172,26 @@ defmodule BlocTheLine.Rooms.RoomServer do
   def handle_call(:start_game, _from, state) do
     # Assign corners to players based on their colors
     player_corners = assign_corners_to_players(state.players)
-    new_state = %{state | game_started: true, player_corners: player_corners}
+    
+    # Assign random pieces to all players
+    new_pieces =
+      state.players
+      |> Map.keys()
+      |> Enum.reduce(%{}, fn player_id, acc ->
+        random_piece = Pieces.random_starting_piece_name()
+        Map.put(acc, player_id, random_piece)
+      end)
+
+    new_state = %{state | game_started: true, player_corners: player_corners, player_pieces: new_pieces}
+
+    # Broadcast piece assignments to all players
+    Enum.each(new_pieces, fn {player_id, piece_name} ->
+      Phoenix.PubSub.broadcast(
+        BlocTheLine.PubSub,
+        "room:#{state.room_code}",
+        {:piece_assigned, player_id, piece_name}
+      )
+    end)
 
     Phoenix.PubSub.broadcast(
       BlocTheLine.PubSub,
@@ -219,12 +263,21 @@ defmodule BlocTheLine.Rooms.RoomServer do
     # Use Board.add_piece with validation, passing the player's assigned corner
     case Board.add_piece(state.board, piece, {col, row}, player_atom, player_corner) do
       {:ok, new_board} ->
-        new_state = %{state | board: new_board}
+        # Assign a new random piece after successful placement
+        random_piece = Pieces.random_starting_piece_name()
+        new_pieces = Map.put(state.player_pieces, player_id, random_piece)
+        new_state = %{state | board: new_board, player_pieces: new_pieces}
 
         Phoenix.PubSub.broadcast(
           BlocTheLine.PubSub,
           "room:#{state.room_code}",
           {:piece_placed, player_id, row, col, cells, new_board}
+        )
+
+        Phoenix.PubSub.broadcast(
+          BlocTheLine.PubSub,
+          "room:#{state.room_code}",
+          {:piece_assigned, player_id, random_piece}
         )
 
         Logger.info(
@@ -287,6 +340,12 @@ defmodule BlocTheLine.Rooms.RoomServer do
 
 
     {:reply, :ok, new_state}
+  end
+
+  @impl true
+  def handle_call({:get_assigned_piece, player_id}, _from, state) do
+    piece_name = Map.get(state.player_pieces, player_id)
+    {:reply, piece_name, state}
   end
 
   @impl true

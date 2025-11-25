@@ -49,6 +49,9 @@ defmodule BlocTheLineWeb.RoomLive do
                   }
                 end)
 
+              # Get assigned piece for this player
+              assigned_piece = Map.get(room_state.player_pieces || %{}, player_id)
+
               {:ok,
                socket
                |> assign(:room_code, room_code)
@@ -66,6 +69,7 @@ defmodule BlocTheLineWeb.RoomLive do
                |> assign(:player_corners, Map.get(room_state, :player_corners, %{}))
                |> assign(:my_corner, Map.get(room_state.player_corners || %{}, player_id, {0, 0}))
                |> assign(:last_placed_position, nil)
+               |> assign(:assigned_piece, assigned_piece)
                |> assign(:copied, false)}
 
             {:error, :room_not_found} ->
@@ -242,6 +246,14 @@ defmodule BlocTheLineWeb.RoomLive do
     my_corner = Map.get(player_corners, socket.assigns.player_id, {0, 0})
     {col, row} = my_corner
 
+    # Get the assigned piece for this player after game starts
+    assigned_piece =
+      if socket.assigns.player_id do
+        Rooms.get_assigned_piece(socket.assigns.room_code, socket.assigns.player_id)
+      else
+        nil
+      end
+
     {:noreply,
      socket
      |> assign(:game_started, true)
@@ -249,7 +261,20 @@ defmodule BlocTheLineWeb.RoomLive do
      |> assign(:my_corner, my_corner)
      # Initialize to corner
      |> assign(:last_placed_position, my_corner)
+     |> assign(:assigned_piece, assigned_piece)
      |> push_event("game_started", %{col: col, row: row})}
+  end
+
+  def handle_info({:piece_assigned, player_id, piece_name}, socket) do
+    # Only update if this is for the current player
+    if player_id == socket.assigns.player_id do
+      {:noreply,
+       socket
+       |> assign(:assigned_piece, piece_name)
+       |> push_event("piece_assigned", %{piece_name: piece_name})}
+    else
+      {:noreply, socket}
+    end
   end
 
   # Player joined/left handlers
