@@ -3,6 +3,53 @@ defmodule BlocTheLineWeb.RoomLive do
   alias BlocTheLine.Rooms
   require Logger
 
+  # Player name validation: alphanumeric, spaces, hyphens, underscores only, 1-30 chars
+  defp validate_player_name(name) when is_binary(name) do
+    trimmed = String.trim(name)
+
+    cond do
+      trimmed == "" ->
+        {:error, "Name cannot be empty"}
+
+      String.length(trimmed) > 30 ->
+        {:error, "Name must be 30 characters or less"}
+
+      not Regex.match?(~r/^[a-zA-Z0-9\s\-_]+$/, trimmed) ->
+        {:error,
+         "Name can only contain letters, numbers, spaces, hyphens (-), and underscores (_)"}
+
+      true ->
+        {:ok, trimmed}
+    end
+  end
+
+  defp validate_player_name(_), do: {:error, "Invalid name format"}
+
+  # Get a safe initial for avatar display (handles edge cases)
+  def get_avatar_initial(name) when is_binary(name) do
+    trimmed = String.trim(name)
+
+    case String.first(trimmed) do
+      nil -> "?"
+      char when char in ["-", "_"] ->
+        # If first char is a special allowed char, try to find a letter/number
+        case Regex.run(~r/[a-zA-Z0-9]/, trimmed) do
+          [first_valid | _] -> String.upcase(first_valid)
+          nil -> "?"
+        end
+
+      char ->
+        # Extract first alphanumeric character and uppercase it
+        if Regex.match?(~r/^[a-zA-Z0-9]$/, char) do
+          String.upcase(char)
+        else
+          "?"
+        end
+    end
+  end
+
+  def get_avatar_initial(_), do: "?"
+
   def mount(params, _session, socket) do
     room_code = params["room_code"]
     # Decode URL-encoded player name (spaces are encoded as + in query strings)
@@ -17,14 +64,16 @@ defmodule BlocTheLineWeb.RoomLive do
       {:ok, socket |> put_flash(:error, "Invalid room") |> push_navigate(to: ~p"/")}
     else
       if connected?(socket) do
-        # Require a name to join; do not auto-create guest names on the server.
-        if String.trim(player_name || "") == "" do
-          {:ok,
-           socket
-           |> put_flash(:info, "Please enter your name to join room #{room_code}")
-           |> push_navigate(to: ~p"/?room_code=#{room_code}")}
-        else
-          case Rooms.join_room(room_code, player_name) do
+        # Validate player name from URL
+        case validate_player_name(player_name) do
+          {:error, message} ->
+            {:ok,
+             socket
+             |> put_flash(:error, message)
+             |> push_navigate(to: ~p"/?room_code=#{room_code}")}
+
+          {:ok, validated_name} ->
+            case Rooms.join_room(room_code, validated_name) do
             {:ok, player_id} ->
               Phoenix.PubSub.subscribe(BlocTheLine.PubSub, "room:#{room_code}")
               {:ok, room_state} = Rooms.get_room(room_code)
@@ -61,7 +110,7 @@ defmodule BlocTheLineWeb.RoomLive do
                socket
                |> assign(:room_code, room_code)
                |> assign(:player_id, player_id)
-               |> assign(:player_name, player_name)
+               |> assign(:player_name, validated_name)
                |> assign(:player_color, player_color)
                |> assign(:players, room_state.players)
                |> assign(:public, Map.get(room_state, :public, false))

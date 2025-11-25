@@ -66,7 +66,7 @@
                     _ -> "bg-gray-500"
                   end
                 }"}>
-                  {String.first(player.name)}
+                  {BlocTheLineWeb.RoomLive.get_avatar_initial(player.name)}
                 </div>
                 <div class="flex-1">
                   <p class="font-semibold text-gray-800">
