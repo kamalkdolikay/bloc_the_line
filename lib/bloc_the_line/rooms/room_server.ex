@@ -83,8 +83,17 @@ defmodule BlocTheLine.Rooms.RoomServer do
     if map_size(state.players) >= 4 do
       {:reply, {:error, :room_full}, state}
     else
-      player_id = generate_player_id()
-      player_color = state.next_player_color
+      # Check for duplicate names (case-insensitive)
+      name_exists? =
+        state.players
+        |> Map.values()
+        |> Enum.any?(fn player -> String.downcase(player.name) == String.downcase(player_name) end)
+
+      if name_exists? do
+        {:reply, {:error, :duplicate_name}, state}
+      else
+        player_id = generate_player_id()
+        player_color = state.next_player_color
 
       new_player = %{
         id: player_id,
@@ -145,11 +154,12 @@ defmodule BlocTheLine.Rooms.RoomServer do
         {:player_joined, new_player}
       )
 
-      Logger.info(
-        "Player #{player_name} (#{player_id}) joined room #{state.room_code} as color #{player_color}"
-      )
+        Logger.info(
+          "Player #{player_name} (#{player_id}) joined room #{state.room_code} as color #{player_color}"
+        )
 
-      {:reply, {:ok, player_id}, new_state}
+        {:reply, {:ok, player_id}, new_state}
+      end
     end
   end
 

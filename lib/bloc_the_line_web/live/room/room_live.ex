@@ -138,6 +138,12 @@ defmodule BlocTheLineWeb.RoomLive do
                |> put_flash(:error, "Room is full")
                |> push_navigate(to: ~p"/")}
 
+            {:error, :duplicate_name} ->
+              {:ok,
+               socket
+               |> put_flash(:error, "A player with that name already exists in this room. Please choose a different name.")
+               |> push_navigate(to: ~p"/?room_code=#{room_code}")}
+
             {:error, reason} ->
               Logger.warning("Failed to join room #{inspect(room_code)}: #{inspect(reason)}")
 
