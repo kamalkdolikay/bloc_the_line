@@ -105,7 +105,7 @@
                     _ -> "bg-gray-500"
                   end
                 }"}>
-                  {String.first(player.name)}
+                  {BlocTheLineWeb.RoomLive.get_avatar_initial(player.name)}
                 </div>
                 <div class="flex-1">
                   <p class="font-semibold text-gray-800">
@@ -231,6 +231,7 @@
               id="moving-block-container"
               phx-hook="MovingBlock"
               data-pieces={Jason.encode!(@pieces)}
+              data-assigned-piece={@assigned_piece}
               data-rows="20"
               data-cols="20"
               data-my-corner={Jason.encode!(Tuple.to_list(@my_corner))}
@@ -298,8 +299,13 @@
 
             <div class="mt-4 text-center text-sm text-gray-600">
               <p>
-                Use WASD to move | R/E to rotate | F/V to flip | [ ] to change piece | SPACE to place
+                Use WASD to move | R/E to rotate | F/V to flip | SPACE to place
               </p>
+              <%= if @assigned_piece do %>
+                <p class="mt-2 font-semibold text-blue-600">
+                  Current Piece: {@assigned_piece}
+                </p>
+              <% end %>
             </div>
           </div>
         <% else %>

@@ -80,6 +80,9 @@
           phx-input="update_player_name"
           style="width: 100%; padding: 0.5rem; border: 1px solid #aaa; margin-bottom: 0.5rem;"
           required
+          maxlength="30"
+          pattern="[a-zA-Z0-9\s\-_]+"
+          title="Letters, numbers, spaces, hyphens, and underscores only (max 30 characters)"
           autofocus={@room_code != ""}
         />
         <button
@@ -103,6 +106,9 @@
           phx-input="update_player_name"
           autofocus={@room_code != ""}
           required
+          maxlength="30"
+          pattern="[a-zA-Z0-9\s\-_]+"
+          title="Letters, numbers, spaces, hyphens, and underscores only (max 30 characters)"
           style="width: 100%; padding: 0.5rem; border: 1px solid #aaa; margin-bottom: 0.5rem;"
         />
         <input

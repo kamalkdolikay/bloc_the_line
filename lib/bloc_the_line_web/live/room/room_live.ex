@@ -3,20 +3,84 @@ defmodule BlocTheLineWeb.RoomLive do
   alias BlocTheLine.Rooms
   require Logger
 
+  # Player name validation: alphanumeric, spaces, hyphens, underscores only, 1-30 chars
+  defp validate_player_name(name) when is_binary(name) do
+    trimmed = String.trim(name)
+
+    cond do
+      trimmed == "" ->
+        {:error, "Name cannot be empty"}
+
+      String.length(trimmed) > 30 ->
+        {:error, "Name must be 30 characters or less"}
+
+      not Regex.match?(~r/^[a-zA-Z0-9\s\-_]+$/, trimmed) ->
+        {:error,
+         "Name can only contain letters, numbers, spaces, hyphens (-), and underscores (_)"}
+
+      true ->
+        {:ok, trimmed}
+    end
+  end
+
+  defp validate_player_name(_), do: {:error, "Invalid name format"}
+
+  # Get a safe initial for avatar display (handles edge cases)
+  def get_avatar_initial(name) when is_binary(name) do
+    trimmed = String.trim(name)
+
+    case String.first(trimmed) do
+      nil -> "?"
+      char when char in ["-", "_"] ->
+        # If first char is a special allowed char, try to find a letter/number
+        case Regex.run(~r/[a-zA-Z0-9]/, trimmed) do
+          [first_valid | _] -> String.upcase(first_valid)
+          nil -> "?"
+        end
+
+      char ->
+        # Extract first alphanumeric character and uppercase it
+        if Regex.match?(~r/^[a-zA-Z0-9]$/, char) do
+          String.upcase(char)
+        else
+          "?"
+        end
+    end
+  end
+
+  def get_avatar_initial(_), do: "?"
+
   def mount(params, _session, socket) do
     room_code = params["room_code"]
-    player_name = params["name"] || ""
+    # Decode URL-encoded player name (spaces are encoded as + in query strings)
+    # Replace + with spaces first, then decode any %-encoded characters
+    player_name =
+      (params["name"] || "")
+      |> String.replace("+", " ")
+      |> URI.decode()
 
     # Guard against missing room codes (e.g. /room without code).
     if room_code in [nil, ""] do
       {:ok, socket |> put_flash(:error, "Invalid room") |> push_navigate(to: ~p"/")}
     else
       if connected?(socket) do
-        # If no name provided, generate a guest name and join the room.
-        chosen_name =
-          if String.trim(player_name) == "", do: generate_guest_name(), else: player_name
+        # If no name provided, generate a guest name. Otherwise validate the name.
+        chosen_name_result =
+          if String.trim(player_name) == "" do
+            {:ok, generate_guest_name()}
+          else
+            validate_player_name(player_name)
+          end
 
-        case Rooms.join_room(room_code, chosen_name) do
+        case chosen_name_result do
+          {:error, message} ->
+            {:ok,
+             socket
+             |> put_flash(:error, message)
+             |> push_navigate(to: ~p"/?room_code=#{room_code}")}
+
+          {:ok, chosen_name} ->
+            case Rooms.join_room(room_code, chosen_name) do
           {:ok, player_id} ->
             Phoenix.PubSub.subscribe(BlocTheLine.PubSub, "room:#{room_code}")
             {:ok, room_state} = Rooms.get_room(room_code)
@@ -41,23 +105,29 @@ defmodule BlocTheLineWeb.RoomLive do
                 }
               end)
 
-            {:ok,
-             socket
-             |> assign(:room_code, room_code)
-             |> assign(:player_id, player_id)
-             |> assign(:player_name, chosen_name)
-             |> assign(:players, room_state.players)
-             |> assign(:public, Map.get(room_state, :public, false))
-             |> assign(:board, board)
-             |> assign(:pieces, pieces)
-             |> assign(:copied, false)
-             |> assign(:editing_name, false)
-             |> assign(:player_color, Map.get(room_state.players[player_id] || %{}, :color, 1))
-             |> assign(:host_id, Map.get(room_state, :host_id))
-             |> assign(:game_started, Map.get(room_state, :game_started, false))
-             |> assign(:player_corners, Map.get(room_state, :player_corners, %{}))
-             |> assign(:my_corner, Map.get(room_state, :my_corner, {0, 0}))
-             |> assign(:last_placed_position, Map.get(room_state, :last_placed_position, nil))}
+              # Get assigned piece for this player (our feature)
+              assigned_piece = Map.get(room_state.player_pieces || %{}, player_id)
+              player_color = get_in(room_state.players, [player_id, :color]) || 1
+
+              {:ok,
+               socket
+               |> assign(:room_code, room_code)
+               |> assign(:player_id, player_id)
+               |> assign(:player_name, chosen_name)
+               |> assign(:player_color, player_color)
+               |> assign(:players, room_state.players)
+               |> assign(:public, Map.get(room_state, :public, false))
+               |> assign(:board, board)
+               |> assign(:pieces, pieces)
+               |> assign(:copied, false)
+               |> assign(:editing_name, false)
+               |> assign(:host_id, Map.get(room_state, :host_id))
+               |> assign(:game_started, Map.get(room_state, :game_started, false))
+               |> assign(:player_positions, Map.get(room_state, :player_positions, %{}))
+               |> assign(:player_corners, Map.get(room_state, :player_corners, %{}))
+               |> assign(:my_corner, Map.get(room_state.player_corners || %{}, player_id, {0, 0}))
+               |> assign(:last_placed_position, Map.get(room_state, :last_placed_position, nil))
+               |> assign(:assigned_piece, assigned_piece)}
 
           {:error, :room_not_found} ->
             {:ok, socket |> put_flash(:error, "Room not found") |> push_navigate(to: ~p"/")}
@@ -65,10 +135,19 @@ defmodule BlocTheLineWeb.RoomLive do
           {:error, :room_full} ->
             {:ok, socket |> put_flash(:error, "Room is full") |> push_navigate(to: ~p"/")}
 
+          {:error, :duplicate_name} ->
+            {:ok,
+             socket
+             |> put_flash(:error,
+               "A player with that name already exists in this room. Please choose a different name."
+             )
+             |> push_navigate(to: ~p"/?room_code=#{room_code}")}
+
           {:error, reason} ->
             Logger.warning("Failed to join room #{inspect(room_code)}: #{inspect(reason)}")
 
             {:ok, socket |> put_flash(:error, "Unable to join room") |> push_navigate(to: ~p"/")}
+            end
         end
       else
         # Not connected yet - show a lightweight preview if the room exists
@@ -118,7 +197,10 @@ defmodule BlocTheLineWeb.RoomLive do
 
       {:error, reason} ->
         IO.inspect(reason, label: "Failed to place piece")
-        {:noreply, socket}
+        # Send error event to frontend to trigger shake animation
+        {:noreply,
+         socket
+         |> push_event("piece_placement_error", %{reason: inspect(reason)})}
     end
   end
 
@@ -224,6 +306,14 @@ defmodule BlocTheLineWeb.RoomLive do
     my_corner = Map.get(player_corners, socket.assigns.player_id, {0, 0})
     {col, row} = my_corner
 
+    # Get the assigned piece for this player after game starts
+    assigned_piece =
+      if socket.assigns.player_id do
+        Rooms.get_assigned_piece(socket.assigns.room_code, socket.assigns.player_id)
+      else
+        nil
+      end
+
     {:noreply,
      socket
      |> assign(:game_started, true)
@@ -231,7 +321,20 @@ defmodule BlocTheLineWeb.RoomLive do
      |> assign(:my_corner, my_corner)
      # Initialize to corner
      |> assign(:last_placed_position, my_corner)
+     |> assign(:assigned_piece, assigned_piece)
      |> push_event("game_started", %{col: col, row: row})}
+  end
+
+  def handle_info({:piece_assigned, player_id, piece_name}, socket) do
+    # Only update if this is for the current player
+    if player_id == socket.assigns.player_id do
+      {:noreply,
+       socket
+       |> assign(:assigned_piece, piece_name)
+       |> push_event("piece_assigned", %{piece_name: piece_name})}
+    else
+      {:noreply, socket}
+    end
   end
 
   # Player joined/left handlers

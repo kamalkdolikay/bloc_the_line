@@ -117,4 +117,11 @@ defmodule BlocTheLine.Rooms do
   def start_game(room_code) do
     RoomServer.start_game(room_code)
   end
+
+  def get_assigned_piece(room_code, player_id) do
+    case room_exists?(room_code) do
+      true -> RoomServer.get_assigned_piece(room_code, player_id)
+      false -> nil
+    end
+  end
 end
