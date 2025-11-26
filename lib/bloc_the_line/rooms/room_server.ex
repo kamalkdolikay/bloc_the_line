@@ -7,6 +7,16 @@ defmodule BlocTheLine.Rooms.RoomServer do
     GenServer.start_link(__MODULE__, room_code, name: via_tuple(room_code))
   end
 
+  @impl true
+  def child_spec(room_code) do
+    %{
+      id: {:room, room_code},
+      start: {__MODULE__, :start_link, [room_code]},
+      restart: :temporary,
+      type: :worker
+    }
+  end
+
   def join(room_code, player_name) do
     GenServer.call(via_tuple(room_code), {:join, player_name})
   end
@@ -64,6 +74,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
       board: Board.new(20, 20, 4),
       created_at: DateTime.utc_now(),
       game_started: false,
+      timer_ref: nil,
       next_player_color: 1,
       public: false,
       # ref => player_id
@@ -91,7 +102,9 @@ defmodule BlocTheLine.Rooms.RoomServer do
       name_exists? =
         state.players
         |> Map.values()
-        |> Enum.any?(fn player -> String.downcase(player.name) == String.downcase(player_name) end)
+        |> Enum.any?(fn player ->
+          String.downcase(player.name) == String.downcase(player_name)
+        end)
 
       if name_exists? do
         {:reply, {:error, :duplicate_name}, state}
@@ -99,64 +112,64 @@ defmodule BlocTheLine.Rooms.RoomServer do
         player_id = generate_player_id()
         player_color = state.next_player_color
 
-      new_player = %{
-        id: player_id,
-        name: player_name,
-        color: player_color,
-        ready: false,
-        joined_at: DateTime.utc_now()
-      }
+        new_player = %{
+          id: player_id,
+          name: player_name,
+          color: player_color,
+          ready: false,
+          joined_at: DateTime.utc_now()
+        }
 
-      # Monitor the caller process so we can remove the player on disconnect
-      ref = Process.monitor(from_pid)
+        # Monitor the caller process so we can remove the player on disconnect
+        ref = Process.monitor(from_pid)
 
-      Logger.debug(
-        "Monitoring pid=#{inspect(from_pid)} ref=#{inspect(ref)} for player=#{player_id}"
-      )
+        Logger.debug(
+          "Monitoring pid=#{inspect(from_pid)} ref=#{inspect(ref)} for player=#{player_id}"
+        )
 
-      # record the monitor ref -> player_id and player_id -> ref so we can cleanup on DOWN
-      monitors = Map.put(state.monitors, ref, player_id)
-      player_refs = Map.put(state.player_refs, player_id, ref)
+        # record the monitor ref -> player_id and player_id -> ref so we can cleanup on DOWN
+        monitors = Map.put(state.monitors, ref, player_id)
+        player_refs = Map.put(state.player_refs, player_id, ref)
 
-      new_state =
-        state
-        |> put_in([:players, player_id], new_player)
-        # cycle the color
-        |> Map.put(:next_player_color, rem(player_color, 4) + 1)
-        |> Map.put(:monitors, monitors)
-        |> Map.put(:player_refs, player_refs)
+        new_state =
+          state
+          |> put_in([:players, player_id], new_player)
+          # cycle the color
+          |> Map.put(:next_player_color, rem(player_color, 4) + 1)
+          |> Map.put(:monitors, monitors)
+          |> Map.put(:player_refs, player_refs)
 
-      # Assign host_id if this is the first player
-      new_state =
-        if map_size(state.players) == 0 do
-          Map.put(new_state, :host_id, player_id)
-        else
-          new_state
-        end
+        # Assign host_id if this is the first player
+        new_state =
+          if map_size(state.players) == 0 do
+            Map.put(new_state, :host_id, player_id)
+          else
+            new_state
+          end
 
-      # Assign a random piece if game has started
-      new_state =
-        if new_state.game_started do
-          random_piece = Pieces.random_starting_piece_name()
-          new_pieces = Map.put(new_state.player_pieces, player_id, random_piece)
-          new_state = %{new_state | player_pieces: new_pieces}
+        # Assign a random piece if game has started
+        new_state =
+          if new_state.game_started do
+            random_piece = Pieces.random_starting_piece_name()
+            new_pieces = Map.put(new_state.player_pieces, player_id, random_piece)
+            new_state = %{new_state | player_pieces: new_pieces}
 
-          Phoenix.PubSub.broadcast(
-            BlocTheLine.PubSub,
-            "room:#{state.room_code}",
-            {:piece_assigned, player_id, random_piece}
-          )
+            Phoenix.PubSub.broadcast(
+              BlocTheLine.PubSub,
+              "room:#{state.room_code}",
+              {:piece_assigned, player_id, random_piece}
+            )
 
-          new_state
-        else
-          new_state
-        end
+            new_state
+          else
+            new_state
+          end
 
-      Phoenix.PubSub.broadcast(
-        BlocTheLine.PubSub,
-        "room:#{state.room_code}",
-        {:player_joined, new_player}
-      )
+        Phoenix.PubSub.broadcast(
+          BlocTheLine.PubSub,
+          "room:#{state.room_code}",
+          {:player_joined, new_player}
+        )
 
         Logger.info(
           "Player #{player_name} (#{player_id}) joined room #{state.room_code} as color #{player_color}"
@@ -196,7 +209,17 @@ defmodule BlocTheLine.Rooms.RoomServer do
         Map.put(acc, player_id, random_piece)
       end)
 
-    new_state = %{state | game_started: true, player_corners: player_corners, player_pieces: new_pieces}
+    # Mark game as started and store corners + pieces
+    new_state = %{
+      state
+      | game_started: true,
+        player_corners: player_corners,
+        player_pieces: new_pieces
+    }
+
+    # IMPORTANT: reset any existing timer (if nil, cancel_timer/1 is a no-op)
+    new_timer_ref = GameTimer.reset_timer(state.timer_ref)
+    new_state = %{new_state | timer_ref: new_timer_ref}
 
     # Broadcast piece assignments to all players
     Enum.each(new_pieces, fn {player_id, piece_name} ->
@@ -252,7 +275,13 @@ defmodule BlocTheLine.Rooms.RoomServer do
       Logger.info("Player #{player.name} left room #{state.room_code}")
     end
 
-    {:reply, :ok, new_state}
+    # If no players left, shut down this room
+    if map_size(new_players) == 0 do
+      Logger.info("Room #{state.room_code} is empty, shutting down")
+      {:stop, :normal, :ok, %{new_state | timer_ref: nil}}
+    else
+      {:reply, :ok, new_state}
+    end
   end
 
   @impl true
@@ -375,7 +404,6 @@ defmodule BlocTheLine.Rooms.RoomServer do
       {:position_updated, player_id, piece, coord}
     )
 
-
     {:reply, :ok, new_state}
   end
 
@@ -413,8 +441,30 @@ defmodule BlocTheLine.Rooms.RoomServer do
           Logger.info("Player #{player.name} left room #{state.room_code} (disconnect)")
         end
 
-        {:noreply, new_state}
+        # If last player disconnected, shut down this room
+        if map_size(new_players) == 0 do
+          Logger.info("Room #{state.room_code} is empty after disconnect, shutting down")
+          {:stop, :normal, %{new_state | timer_ref: nil}}
+        else
+          {:noreply, new_state}
+        end
     end
+  end
+
+  # Called by GameTimer when the room's game timer expires
+  @impl true
+  def handle_info(:game_over_timeout, state) do
+    Logger.info("Game over by timeout in room #{state.room_code}")
+
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "room:#{state.room_code}",
+      {:game_over, :timeout}
+    )
+
+    new_state = %{state | timer_ref: nil}
+
+    {:noreply, new_state}
   end
 
   defp via_tuple(room_code) do

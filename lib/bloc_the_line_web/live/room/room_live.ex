@@ -30,7 +30,9 @@ defmodule BlocTheLineWeb.RoomLive do
     trimmed = String.trim(name)
 
     case String.first(trimmed) do
-      nil -> "?"
+      nil ->
+        "?"
+
       char when char in ["-", "_"] ->
         # If first char is a special allowed char, try to find a letter/number
         case Regex.run(~r/[a-zA-Z0-9]/, trimmed) do
@@ -81,72 +83,79 @@ defmodule BlocTheLineWeb.RoomLive do
 
           {:ok, chosen_name} ->
             case Rooms.join_room(room_code, chosen_name) do
-          {:ok, player_id} ->
-            Phoenix.PubSub.subscribe(BlocTheLine.PubSub, "room:#{room_code}")
-            {:ok, room_state} = Rooms.get_room(room_code)
+              {:ok, player_id} ->
+                Phoenix.PubSub.subscribe(BlocTheLine.PubSub, "room:#{room_code}")
+                {:ok, room_state} = Rooms.get_room(room_code)
 
-            board = room_state.board
+                board = room_state.board
 
-            pieces =
-              Pieces.all()
-              |> Enum.sort_by(fn {_key, piece} -> piece.name end)
-              |> Enum.map(fn {_key, piece} ->
-                %{
-                  name: piece.name,
-                  cells:
-                    piece.cells
-                    |> MapSet.to_list()
-                    |> Enum.map(fn {x, y} -> [x, y] end),
-                  corners:
-                    piece.corners
-                    |> MapSet.to_list()
-                    |> Enum.map(fn {x, y} -> [x, y] end),
-                  anchor: Tuple.to_list(piece.anchor)
-                }
-              end)
+                pieces =
+                  Pieces.all()
+                  |> Enum.sort_by(fn {_key, piece} -> piece.name end)
+                  |> Enum.map(fn {_key, piece} ->
+                    %{
+                      name: piece.name,
+                      cells:
+                        piece.cells
+                        |> MapSet.to_list()
+                        |> Enum.map(fn {x, y} -> [x, y] end),
+                      corners:
+                        piece.corners
+                        |> MapSet.to_list()
+                        |> Enum.map(fn {x, y} -> [x, y] end),
+                      anchor: Tuple.to_list(piece.anchor)
+                    }
+                  end)
 
-              # Get assigned piece for this player (our feature)
-              assigned_piece = Map.get(room_state.player_pieces || %{}, player_id)
-              player_color = get_in(room_state.players, [player_id, :color]) || 1
+                # Get assigned piece for this player (our feature)
+                assigned_piece = Map.get(room_state.player_pieces || %{}, player_id)
+                player_color = get_in(room_state.players, [player_id, :color]) || 1
 
-              {:ok,
-               socket
-               |> assign(:room_code, room_code)
-               |> assign(:player_id, player_id)
-               |> assign(:player_name, chosen_name)
-               |> assign(:player_color, player_color)
-               |> assign(:players, room_state.players)
-               |> assign(:public, Map.get(room_state, :public, false))
-               |> assign(:board, board)
-               |> assign(:pieces, pieces)
-               |> assign(:copied, false)
-               |> assign(:editing_name, false)
-               |> assign(:host_id, Map.get(room_state, :host_id))
-               |> assign(:game_started, Map.get(room_state, :game_started, false))
-               |> assign(:player_positions, Map.get(room_state, :player_positions, %{}))
-               |> assign(:player_corners, Map.get(room_state, :player_corners, %{}))
-               |> assign(:my_corner, Map.get(room_state.player_corners || %{}, player_id, {0, 0}))
-               |> assign(:last_placed_position, Map.get(room_state, :last_placed_position, nil))
-               |> assign(:assigned_piece, assigned_piece)}
+                {:ok,
+                 socket
+                 |> assign(:room_code, room_code)
+                 |> assign(:player_id, player_id)
+                 |> assign(:player_name, chosen_name)
+                 |> assign(:player_color, player_color)
+                 |> assign(:players, room_state.players)
+                 |> assign(:public, Map.get(room_state, :public, false))
+                 |> assign(:board, board)
+                 |> assign(:pieces, pieces)
+                 |> assign(:copied, false)
+                 |> assign(:editing_name, false)
+                 |> assign(:host_id, Map.get(room_state, :host_id))
+                 |> assign(:game_started, Map.get(room_state, :game_started, false))
+                 |> assign(:player_positions, Map.get(room_state, :player_positions, %{}))
+                 |> assign(:player_corners, Map.get(room_state, :player_corners, %{}))
+                 |> assign(
+                   :my_corner,
+                   Map.get(room_state.player_corners || %{}, player_id, {0, 0})
+                 )
+                 |> assign(:last_placed_position, Map.get(room_state, :last_placed_position, nil))
+                 |> assign(:assigned_piece, assigned_piece)
+                 |> assign(:game_over, false)
+                 |> assign(:game_over_reason, nil)}
 
-          {:error, :room_not_found} ->
-            {:ok, socket |> put_flash(:error, "Room not found") |> push_navigate(to: ~p"/")}
+              {:error, :room_not_found} ->
+                {:ok, socket |> put_flash(:error, "Room not found") |> push_navigate(to: ~p"/")}
 
-          {:error, :room_full} ->
-            {:ok, socket |> put_flash(:error, "Room is full") |> push_navigate(to: ~p"/")}
+              {:error, :room_full} ->
+                {:ok, socket |> put_flash(:error, "Room is full") |> push_navigate(to: ~p"/")}
 
-          {:error, :duplicate_name} ->
-            {:ok,
-             socket
-             |> put_flash(:error,
-               "A player with that name already exists in this room. Please choose a different name."
-             )
-             |> push_navigate(to: ~p"/?room_code=#{room_code}")}
+              {:error, :duplicate_name} ->
+                {:ok,
+                 socket
+                 |> put_flash(
+                   :error,
+                   "A player with that name already exists in this room. Please choose a different name."
+                 )
+                 |> push_navigate(to: ~p"/?room_code=#{room_code}")}
 
-          {:error, reason} ->
-            Logger.warning("Failed to join room #{inspect(room_code)}: #{inspect(reason)}")
+              {:error, reason} ->
+                Logger.warning("Failed to join room #{inspect(room_code)}: #{inspect(reason)}")
 
-            {:ok, socket |> put_flash(:error, "Unable to join room") |> push_navigate(to: ~p"/")}
+                {:ok,
+                 socket |> put_flash(:error, "Unable to join room") |> push_navigate(to: ~p"/")}
             end
         end
       else
@@ -179,7 +188,9 @@ defmodule BlocTheLineWeb.RoomLive do
          |> assign(:game_started, false)
          |> assign(:player_corners, %{})
          |> assign(:my_corner, {0, 0})
-         |> assign(:last_placed_position, nil)}
+         |> assign(:last_placed_position, nil)
+         |> assign(:game_over, false)
+         |> assign(:game_over_reason, nil)}
       end
     end
   end
@@ -302,6 +313,18 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, assign(socket, :players, players)}
   end
 
+  # Game-over broadcast from RoomServer
+  def handle_info({:game_over, reason}, socket) do
+    socket =
+      socket
+      |> assign(:game_over, true)
+      |> assign(:game_over_reason, reason)
+      # IMPORTANT: do NOT set :game_started to false here
+      |> push_event("game_over", %{reason: to_string(reason)})
+
+    {:noreply, socket}
+  end
+
   def handle_info({:game_started, player_corners}, socket) do
     my_corner = Map.get(player_corners, socket.assigns.player_id, {0, 0})
     {col, row} = my_corner
@@ -322,6 +345,9 @@ defmodule BlocTheLineWeb.RoomLive do
      # Initialize to corner
      |> assign(:last_placed_position, my_corner)
      |> assign(:assigned_piece, assigned_piece)
+     # NEW: clear any previous game-over state
+     |> assign(:game_over, false)
+     |> assign(:game_over_reason, nil)
      |> push_event("game_started", %{col: col, row: row})}
   end
 
