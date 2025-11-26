@@ -90,10 +90,11 @@ defmodule BlocTheLine.Rooms.RoomServer do
       # record the monitor ref -> new_player.id and new_player.id -> ref so we can cleanup on DOWN
       monitors = Map.put(state.monitors, ref, new_player.id)
       player_refs = Map.put(state.player_refs, new_player.id, ref)
+      new_players = Map.put(state.players, new_player.id, new_player)
 
       new_state =
         state
-        |> put_in([:players, new_player.id], new_player)
+        |> Map.put(:players, new_players)
         # cycle the color
         |> Map.put(:next_player_color, rem(new_player.color, 4) + 1)
         |> Map.put(:monitors, monitors)
@@ -124,15 +125,25 @@ defmodule BlocTheLine.Rooms.RoomServer do
   # Setter the player's ready variable
   @impl true
   def handle_call({:set_ready, player_id, ready}, _from, state) do
-    new_state = update_in(state.players[player_id].ready, fn _ -> ready end)
+    case Map.fetch(state.players, player_id) do
+      {:ok, player} ->
+        new_player = %Player{player | ready: ready}
+        new_state = %{state |
+          players: Map.replace(state.players, player_id, new_player)
+        }
 
-    Phoenix.PubSub.broadcast(
-      BlocTheLine.PubSub,
-      "room:#{state.room_code}",
-      {:player_ready_changed, player_id, ready}
-    )
+        Phoenix.PubSub.broadcast(
+          BlocTheLine.PubSub,
+          "room:#{state.room_code}",
+          {:player_ready_changed, player_id, ready}
+        )
 
-    {:reply, :ok, new_state}
+        {:reply, :ok, new_state}
+
+      _ ->
+        # Ignore non-existent player id, avoid new error atoms
+        {:reply, :ok, state}
+    end
   end
 
   # Sets the game_started variable to true to start the game
@@ -200,23 +211,21 @@ defmodule BlocTheLine.Rooms.RoomServer do
 
   @impl true
   def handle_call({:place_piece, player_id, row, col, cells}, _from, state) do
-    player_color = get_in(state.players, [player_id, :color]) || 1
-    player_atom = color_to_player(player_color)
+    case Map.fetch(state.players, player_id) do
+      {:ok, player} ->
+        player_atom = color_to_player(player.color)
 
-    # Convert cells to a Piece struct
-    # TODO: Maybe use a function to transform into the pre chosen pieces
-    piece = cells_to_piece(cells)
+        # Convert cells to a Piece struct
+        # TODO: Maybe use a function to transform into the pre chosen pieces
+        piece = cells_to_piece(cells)
 
-    # Use Board.add_piece with validation
-    case Board.add_piece(state.board, piece, {col, row}, player_atom) do
-      {:ok, new_board} ->
-
-        case Map.fetch(state.players, player_id) do
-          {:ok, player} ->
+        # Use Board.add_piece with validation
+        case Board.add_piece(state.board, piece, {col, row}, player_atom) do
+          {:ok, new_board} ->
             new_player = Player.add_points_by_piece(player, piece)
             new_state = %{state |
               board: new_board,
-              players: Map.put(state.players, player_id, new_player)
+              players: Map.replace(state.players, player_id, new_player)
             }
 
             Phoenix.PubSub.broadcast(
@@ -231,17 +240,19 @@ defmodule BlocTheLine.Rooms.RoomServer do
 
             {:reply, {:ok, new_board}, new_state}
 
-          _ ->
-            # Ignore error for player non existent
-            {:reply, {:ok, state.board}, state}
+          {:err, _board} ->
+            Logger.warning(
+              "#{player_id} (#{player_atom}) failed to place piece at (#{row}, #{col}) - invalid placement"
+            )
+
+            {:reply, {:error, :invalid_placement}, state}
         end
 
-      {:err, _board} ->
+      _ ->
         Logger.warning(
-          "#{player_id} (#{player_atom}) failed to place piece at (#{row}, #{col}) - invalid placement"
+          "#{player_id} (non existent player in the room) failed to place piece at (#{row}, #{col}) - Non existent player"
         )
-
-        {:reply, {:error, :invalid_placement}, state}
+        {:reply, {:error, :non_existent_player}, state}
     end
   end
 
@@ -273,19 +284,20 @@ defmodule BlocTheLine.Rooms.RoomServer do
   end
 
   @impl true
-  def handle_call({:update_position, player_id, piece, coord}, _from, state) do
+  def handle_call({:update_position, player_id, piece_name, coord}, _from, state) do
     case Map.fetch(state.players, player_id) do
       {:ok, player} ->
+        piece = piece_name |> String.to_atom() |> Pieces.get()
         new_player = player
           |> Player.update_board_location(coord)
           |> Player.set_current_piece(piece)
 
-        new_state = %{state | players: Map.put(state.players, player_id, new_player)}
+        new_state = %{state | players: Map.replace(state.players, player_id, new_player)}
 
         Phoenix.PubSub.broadcast(
           BlocTheLine.PubSub,
           "room:#{state.room_code}",
-          {:position_updated, player_id, piece, coord}
+          {:position_updated, player_id, piece_name, coord}
         )
 
         {:reply, :ok, new_state}

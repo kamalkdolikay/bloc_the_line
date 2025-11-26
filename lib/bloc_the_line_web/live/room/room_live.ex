@@ -3,6 +3,8 @@ defmodule BlocTheLineWeb.RoomLive do
   alias BlocTheLine.Rooms
   require Logger
 
+  # TODO: NOW, FOR SOME REASON, UPDATING THE POSITION CAUSES THE PLAYERS TO RE ENTER THE SAME ROOM
+
   def mount(params, _session, socket) do
     room_code = params["room_code"]
     player_name = params["name"] || ""
@@ -28,7 +30,8 @@ defmodule BlocTheLineWeb.RoomLive do
               board = room_state.board
 
               # Get the player's color (1-4) to display as P1, P2, P3, P4
-              player_color = get_in(room_state.players, [player_id, :color]) || 1
+              {:ok, player} = Map.fetch(room_state.players, player_id)
+              player_color = player.color || 1
 
               # Get all pieces for the MovingBlock hook
               pieces =
@@ -62,7 +65,6 @@ defmodule BlocTheLineWeb.RoomLive do
                |> assign(:copied, false)
                |> assign(:host_id, room_state.host_id)
                |> assign(:game_started, room_state.game_started)
-               |> assign(:player_positions, room_state.player_positions)
                |> assign(:copied, false)}
 
             {:error, :room_not_found} ->
@@ -260,25 +262,26 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, assign(socket, :board, new_board)}
   end
 
-  # Check if all players are ready
-  defp all_ready?(players) do
-    Enum.all?(players, fn {_id, player} -> player.ready end)
-  end
-
   # serve player position updates to frontend
-  def handle_info({:position_updated, player_id, piece, coord}, socket) do
+  def handle_info({:position_updated, player_id, piece_name, coord}, socket) do
     {col, row} = coord
+    player = Map.get(socket.assigns.players, player_id)
 
     {:noreply,
      socket
      |> push_event("position_updated", %{
        player_id: player_id,
-       piece: piece,
+       piece: piece_name,
        row: row,
        col: col,
        # send the colour of the updated piece so frontend knows how to render it
-       color: get_in(socket.assigns.players, [player_id, :color])
+       color: player.color
      })}
+  end
+
+  # Check if all players are ready
+  defp all_ready?(players) do
+    Enum.all?(players, fn {_id, player} -> player.ready end)
   end
 
   def terminate(_reason, socket) do
