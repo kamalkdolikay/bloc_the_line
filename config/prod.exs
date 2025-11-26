@@ -9,7 +9,8 @@ config :bloc_the_line, BlocTheLineWeb.Endpoint,
   server: true,
   # check_origin: ["https://bloc-the-line.onrender.com"]
   check_origin: false
-  # cache_static_manifest: "priv/static/cache_manifest.json"
+
+# cache_static_manifest: "priv/static/cache_manifest.json"
 
 # Configures Swoosh API Client
 config :swoosh, api_client: Swoosh.ApiClient.Req

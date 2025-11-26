@@ -5,7 +5,46 @@
       <div class="flex justify-between items-center">
         <div>
           <h1 class="text-3xl font-bold text-gray-800">Room: {@room_code}</h1>
-          <p class="text-gray-600">Playing as: {@player_name} (P{@player_color})</p>
+
+          <div class="mt-1 flex items-center gap-3">
+            <span class="text-gray-600">My name is:</span>
+
+            <%= if @editing_name do %>
+              <form phx-submit="save_name" class="flex items-center gap-2">
+                <input
+                  type="text"
+                  name="new_name"
+                  value={@player_name}
+                  required
+                  class="border px-2 py-1 rounded bg-gray-100 text-black"
+                />
+                <button
+                  type="submit"
+                  class="bg-blue-500 text-white px-3 py-1 rounded border border-black"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  phx-click="cancel_edit_name"
+                  class="px-3 py-1 rounded border border-black bg-red-500 text-white hover:bg-red-600"
+                >
+                  Cancel
+                </button>
+              </form>
+            <% else %>
+              <div class="flex items-center gap-2">
+                <span class="font-semibold text-gray-800">{@player_name}</span>
+                <button
+                  type="button"
+                  phx-click="start_edit_name"
+                  class="text-sm text-blue-600 underline"
+                >
+                  Edit
+                </button>
+              </div>
+            <% end %>
+          </div>
         </div>
 
         <div class="flex gap-3">
@@ -14,19 +53,19 @@
             id="copy-button"
             phx-hook="CopyToClipboard"
             data-text={url(~p"/room/#{@room_code}")}
-            class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition"
+            class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition border border-black"
           >
             {if @copied, do: "✓ Copied!", else: "Copy Invite Link"}
           </button>
           <button
             phx-click="toggle_public"
-            class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition"
+            class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition border border-black"
           >
             {if @public, do: "Make Private", else: "Make Public"}
           </button>
           <.link
             navigate={~p"/"}
-            class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition"
+            class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition border border-black"
           >
             Leave Room
           </.link>
@@ -195,17 +234,27 @@
               data-rows="20"
               data-cols="20"
               data-my-corner={Jason.encode!(Tuple.to_list(@my_corner))}
-              data-last-placed={if @last_placed_position, do: Jason.encode!(Tuple.to_list(@last_placed_position)), else: "null"}
+              data-last-placed={
+                if @last_placed_position,
+                  do: Jason.encode!(Tuple.to_list(@last_placed_position)),
+                  else: "null"
+              }
               style="position: relative; display: inline-block;"
             >
               <.blokus_board board={@board} />
-              <div class="moving-block" data-row="0" data-col="0" data-player-color={@player_color}></div>
+              <div
+                class="moving-block"
+                data-row="0"
+                data-col="0"
+                data-player-color={@player_color}
+              >
+              </div>
               
-              <!-- Corner indicators for each player -->
+<!-- Corner indicators for each player -->
               <%= for {player_id, {col, row}} <- @player_corners do %>
                 <% player = @players[player_id] %>
                 <%= if player do %>
-                  <div 
+                  <div
                     class="corner-marker"
                     style={
                       "position: absolute; " <>
@@ -234,12 +283,12 @@
                       "pointer-events: none; z-index: 5;"
                     }
                   >
-                    P<%= player.color %>
+                    P{player.color}
                   </div>
                 <% end %>
               <% end %>
               
-              <!-- leave in for use with JS measurements -->
+<!-- leave in for use with JS measurements -->
               <div
                 class="blokus-tile w-8 h-8"
                 style="position: absolute; opacity: 0; pointer-events: none;"
@@ -257,7 +306,9 @@
           <div class="bg-white rounded-lg shadow-lg p-8">
             <div class="text-center py-12">
               <h2 class="text-2xl font-bold text-gray-800 mb-4">Waiting for game to start...</h2>
-              <p class="text-gray-600">The host will start the game when all players are ready.</p>
+              <p class="text-gray-600">
+                The host will start the game when all players are ready.
+              </p>
             </div>
           </div>
         <% end %>
