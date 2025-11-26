@@ -34,15 +34,14 @@
     />
 
     <div
-     id="moving-block-container"
-     phx-hook="MovingBlock"
-     data-player={@current_player}   
-     data-pieces={Jason.encode!(@pieces)}
-     data-rows="20"
-     data-cols="20"
-     style="position: relative; display: inline-block;"
+      id="moving-block-container"
+      phx-hook="MovingBlock"
+      data-player={@current_player}
+      data-pieces={Jason.encode!(@pieces)}
+      data-rows="20"
+      data-cols="20"
+      style="position: relative; display: inline-block;"
     >
-
       <.blokus_board board={@board} />
       <div class="moving-block" data-row="0" data-col="0"></div>
       <!-- leave in for use with JS measurements -->

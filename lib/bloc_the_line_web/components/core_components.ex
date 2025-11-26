@@ -99,7 +99,7 @@ defmodule BlocTheLineWeb.CoreComponents do
 
     assigns =
       assign_new(assigns, :class, fn ->
-        ["btn", Map.fetch!(variants, assigns[:variant])]
+        ["btn", Map.fetch!(variants, assigns[:variant]), "border-black"]
       end)
 
     if rest[:href] || rest[:navigate] || rest[:patch] do

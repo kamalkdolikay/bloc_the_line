@@ -90,6 +90,10 @@ defmodule BlocTheLine.Rooms do
     RoomServer.get_board(room_code)
   end
 
+  def update_player_name(room_code, player_id, new_name) do
+    RoomServer.update_player_name(room_code, player_id, new_name)
+  end
+
   # check if the room exists using registry lookup
   def room_exists?(room_code) do
     case Registry.lookup(BlocTheLine.RoomRegistry, room_code) do

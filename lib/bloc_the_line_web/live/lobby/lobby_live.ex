@@ -62,21 +62,34 @@ defmodule BlocTheLineWeb.LobbyLive do
   end
 
   def handle_event("create_room", %{"player_name" => player_name}, socket) do
-    case validate_player_name(player_name) do
-      {:ok, validated_name} ->
-        case Rooms.create_room() do
-          {:ok, room_code} ->
-            {:noreply,
-             push_navigate(socket,
-               to: ~p"/room/#{room_code}?name=#{URI.encode_www_form(validated_name)}"
-             )}
+    trimmed_name = String.trim(player_name)
 
-          {:error, _} ->
-            {:noreply, put_flash(socket, :error, "Failed to create room")}
-        end
+    # If name is provided, validate it. If empty, allow guest name generation.
+    if trimmed_name == "" do
+      case Rooms.create_room() do
+        {:ok, room_code} ->
+          {:noreply, push_navigate(socket, to: ~p"/room/#{room_code}")}
 
-      {:error, message} ->
-        {:noreply, put_flash(socket, :error, message)}
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Failed to create room")}
+      end
+    else
+      case validate_player_name(player_name) do
+        {:ok, validated_name} ->
+          case Rooms.create_room() do
+            {:ok, room_code} ->
+              {:noreply,
+               push_navigate(socket,
+                 to: ~p"/room/#{room_code}?name=#{URI.encode_www_form(validated_name)}"
+               )}
+
+            {:error, _} ->
+              {:noreply, put_flash(socket, :error, "Failed to create room")}
+          end
+
+        {:error, message} ->
+          {:noreply, put_flash(socket, :error, message)}
+      end
     end
   end
 
@@ -86,15 +99,22 @@ defmodule BlocTheLineWeb.LobbyLive do
     if room_code == "" do
       {:noreply, put_flash(socket, :error, "Please enter a room code")}
     else
-      case validate_player_name(player_name) do
-        {:ok, validated_name} ->
-          {:noreply,
-           push_navigate(socket,
-             to: ~p"/room/#{room_code}?name=#{URI.encode_www_form(validated_name)}"
-           )}
+      trimmed_name = String.trim(player_name)
 
-        {:error, message} ->
-          {:noreply, put_flash(socket, :error, message)}
+      # If name is provided, validate it. If empty, allow guest name generation.
+      if trimmed_name == "" do
+        {:noreply, push_navigate(socket, to: ~p"/room/#{room_code}")}
+      else
+        case validate_player_name(player_name) do
+          {:ok, validated_name} ->
+            {:noreply,
+             push_navigate(socket,
+               to: ~p"/room/#{room_code}?name=#{URI.encode_www_form(validated_name)}"
+             )}
+
+          {:error, message} ->
+            {:noreply, put_flash(socket, :error, message)}
+        end
       end
     end
   end
@@ -119,21 +139,20 @@ defmodule BlocTheLineWeb.LobbyLive do
         true -> nil
       end
 
-    case chosen_name do
-      nil ->
-        {:noreply, put_flash(socket, :error, "Please enter your name before joining a public room")}
+    # If no name provided, allow guest name generation. Otherwise validate the name.
+    if chosen_name == nil or String.trim(chosen_name) == "" do
+      {:noreply, push_navigate(socket, to: ~p"/room/#{room_code}")}
+    else
+      case validate_player_name(chosen_name) do
+        {:ok, validated_name} ->
+          {:noreply,
+           push_navigate(socket,
+             to: ~p"/room/#{room_code}?name=#{URI.encode_www_form(validated_name)}"
+           )}
 
-      name ->
-        case validate_player_name(name) do
-          {:ok, validated_name} ->
-            {:noreply,
-             push_navigate(socket,
-               to: ~p"/room/#{room_code}?name=#{URI.encode_www_form(validated_name)}"
-             )}
-
-          {:error, message} ->
-            {:noreply, put_flash(socket, :error, message)}
-        end
+        {:error, message} ->
+          {:noreply, put_flash(socket, :error, message)}
+      end
     end
   end
 

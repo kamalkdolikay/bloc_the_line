@@ -27,6 +27,10 @@ defmodule BlocTheLine.Rooms.RoomServer do
     GenServer.call(via_tuple(room_code), {:place_piece, player_id, row, col, cells})
   end
 
+  def update_player_name(room_code, player_id, new_name) do
+    GenServer.call(via_tuple(room_code), {:update_name, player_id, new_name})
+  end
+
   def get_board(room_code) do
     GenServer.call(via_tuple(room_code), :get_board)
   end
@@ -302,6 +306,29 @@ defmodule BlocTheLine.Rooms.RoomServer do
         )
 
         {:reply, {:error, :invalid_placement}, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:update_name, player_id, new_name}, _from, state) do
+    case Map.get(state.players, player_id) do
+      nil ->
+        {:reply, {:error, :player_not_found}, state}
+
+      player ->
+        updated_player = Map.put(player, :name, new_name)
+        new_players = Map.put(state.players, player_id, updated_player)
+        new_state = %{state | players: new_players}
+
+        Phoenix.PubSub.broadcast(
+          BlocTheLine.PubSub,
+          "room:#{state.room_code}",
+          {:player_name_changed, player_id, new_name}
+        )
+
+        Logger.info("Player #{player_id} renamed to #{new_name} in room #{state.room_code}")
+
+        {:reply, :ok, new_state}
     end
   end
 
