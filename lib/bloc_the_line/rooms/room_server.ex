@@ -231,7 +231,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
             Phoenix.PubSub.broadcast(
               BlocTheLine.PubSub,
               "room:#{state.room_code}",
-              {:piece_placed, player_id, row, col, cells, new_board}
+              {:piece_placed, player_id, row, col, cells, new_player.points, new_board}
             )
 
             Logger.info(

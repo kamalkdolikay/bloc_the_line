@@ -253,12 +253,13 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, assign(socket, :host_id, new_host_id)}
   end
 
-  def handle_info({:piece_placed, player_id, row, col, cells, new_board}, socket) do
+  def handle_info({:piece_placed, player_id, row, col, cells, player_points, new_board}, socket) do
     IO.inspect(player_id, label: "PIECE PLACED BY")
     IO.inspect({row, col}, label: "AT POSITION")
     IO.inspect(cells, label: "WITH CELLS")
     IO.inspect(new_board, label: "NEW BOARD")
     IO.inspect(socket.assigns.board, label: "OLD BOARD")
+    IO.inspect(player_points, label: "PLAYER_SCORE")
     {:noreply, assign(socket, :board, new_board)}
   end
 
