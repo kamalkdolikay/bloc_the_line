@@ -167,17 +167,25 @@
             <!-- Wrapper so cards & board share the same positioning context -->
   <div class="inline-block mx-auto">
 
-<!-- PLAYER CARDS (one per corner) -->
-<%= for {_id, player} <- @players do %>
-  <% position_classes =
-    case player.color do
-      1 -> "top-0 left-0"
-      2 -> "top-0 right-0"
-      3 -> "bottom-0 left-0"
-      4 -> "bottom-0 right-0"
-      _ -> "top-0 left-0"
-    end
-  %>
+<!-- DYNAMIC PLAYER CARDS -->
+<%
+players_list =
+  @players
+  |> Enum.sort_by(fn {_id, p} -> p.color end)
+
+num_players = length(players_list)
+
+corner_positions =
+  case num_players do
+    1 -> ["top-0 left-0"]
+    2 -> ["top-0 left-0", "bottom-0 right-0"]
+    3 -> ["top-0 left-0", "top-0 right-0", "bottom-0 left-0"]
+    4 -> ["top-0 left-0", "top-0 right-0", "bottom-0 left-0", "bottom-0 right-0"]
+  end
+%>
+
+<%= for {{_id, player}, idx} <- Enum.with_index(players_list) do %>
+  <% pos = Enum.at(corner_positions, idx) %>
 
   <% icon =
     case player.color do
@@ -191,18 +199,16 @@
 
   <div
     class={
-      "player-card absolute #{position_classes} m-2 " <>
-      "bg-white/90 rounded-lg shadow-md px-3 py-2 flex items-center gap-2 z-50"
+      "player-card absolute #{pos} m-2 bg-white/90 rounded-lg shadow-md 
+       px-3 py-2 flex items-center gap-2 z-50"
     }
   >
-    <!-- Wizard Icon -->
     <img
       src={icon}
       alt="Player Icon"
-      class="w-10 h-10 object-cover shadow"
+      class="w-10 h-10 object-contain shadow"
     />
 
-    <!-- Name, Score, Held Piece -->
     <div class="text-xs leading-tight">
       <div class="font-semibold text-gray-800">
         {player.name}
@@ -211,20 +217,17 @@
 
       <div class="text-gray-700">
         Score:
-        <span class="font-semibold">
-          {Map.get(player, :score, 0)}
-        </span>
+        <span class="font-semibold">{Map.get(player, :score, 0)}</span>
       </div>
 
       <div class="text-gray-700">
         Held:
-        <span class="font-semibold">
-          {Map.get(player, :held_piece, "None")}
-        </span>
+        <span class="font-semibold">{Map.get(player, :held_piece, "None")}</span>
       </div>
     </div>
   </div>
 <% end %>
+
 
     </div>
             <div
