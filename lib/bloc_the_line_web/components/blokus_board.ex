@@ -33,14 +33,17 @@ defmodule BlocTheLineWeb.BlokusBoard do
                 cell == 0 && "tile-empty"
               ]}
             >
+              <%= for {_pid, %{row: base_row, col: base_col, cells: cells, anchor: {ax, ay}, color: clr}} <- @opponents do %>
+                <%= for {x, y} <- cells do %>
+                  <% cell_row = base_row + (y - ay) %>
+                  <% cell_col = base_col + (x - ax) %>
 
-              <%= for {_pid, %{row: r, col: c, color: clr}} <- @opponents do %>
-                <%= if r == row_index and c == col_index do %>
-                  <div
-                    class="absolute inset-0 pointer-events-none opacity-60"
-                    style={"background-color: #{ghost_color(clr)}"}
-                  >
-                  </div>
+                  <%= if cell_row == row_index and cell_col == col_index do %>
+                    <div
+                      class="absolute inset-0 pointer-events-none opacity-60"
+                      style={"background-color: #{ghost_color(clr)}"}
+                    ></div>
+                  <% end %>
                 <% end %>
               <% end %>
 
@@ -71,7 +74,7 @@ defmodule BlocTheLineWeb.BlokusBoard do
   # If it's already a 2D list (for backwards compatibility), just return it
   defp board_to_grid(board) when is_list(board), do: board
 
-  # Ghost tile colors 
+  # Ghost tile colors
   defp ghost_color(color) do
     case color do
       1 -> "#22c55e88"  # green

@@ -202,20 +202,18 @@ defmodule BlocTheLineWeb.RoomLive do
   end
 
   # handle player position updates from frontend
-  def handle_event("update_position", %{"piece" => piece, "row" => row, "col" => col}, socket) do
+  def handle_event("update_position", %{"piece" => piece, "row" => row, "col" => col, "cells" => cells, "anchor" => anchor}, socket) do
     player = socket.assigns.player_id
-    row = if is_binary(row), do: String.to_integer(row), else: row
-    col = if is_binary(col), do: String.to_integer(col), else: col
-
-    Rooms.update_position(
-      socket.assigns.room_code,
-      player,
-      piece,
-      {col, row}
-    )
+    Rooms.update_position(socket.assigns.room_code, player, piece, %{
+      row: row,
+      col: col,
+      cells: Enum.map(cells, fn [x,y] -> {x,y} end),
+      anchor: List.to_tuple(anchor)
+    })
 
     {:noreply, socket}
   end
+
 
   def handle_event("reset_copied", _params, socket) do
     {:noreply, assign(socket, :copied, false)}
@@ -265,8 +263,7 @@ defmodule BlocTheLineWeb.RoomLive do
   end
 
   # serve player position updates to frontend
-  def handle_info({:position_updated, player_id, _piece, {col, row}}, socket) do
-    # Skip your own updates — do not show ghost overlay for yourself
+  def handle_info({:position_updated, player_id, _piece, %{row: row, col: col, cells: cells, anchor: anchor}}, socket) do
     if player_id == socket.assigns.player_id do
       {:noreply, socket}
     else
@@ -276,14 +273,14 @@ defmodule BlocTheLineWeb.RoomLive do
         Map.put(socket.assigns.opponents_positions, player_id, %{
           row: row,
           col: col,
+          anchor: anchor,
+          cells: cells,
           color: color
         })
 
       {:noreply, assign(socket, :opponents_positions, updated)}
     end
   end
-
-
 
 
   # Check if all players are ready

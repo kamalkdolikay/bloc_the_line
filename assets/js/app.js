@@ -62,6 +62,8 @@ const localHooks = {
           piece: SHAPES[shapeIndex].name,
           row: anchorRow,
           col: anchorCol,
+          cells: oriented,       
+          anchor: SHAPES[shapeIndex].anchor
         })
       }
 

@@ -43,7 +43,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
     GenServer.call(via_tuple(room_code), :start_game)
   end
 
-  def update_position(room_code, player_id, piece, coord) when is_tuple(coord) do
+  def update_position(room_code, player_id, piece, coord) do
     GenServer.call(via_tuple(room_code), {:update_position, player_id, piece, coord})
   end
 
