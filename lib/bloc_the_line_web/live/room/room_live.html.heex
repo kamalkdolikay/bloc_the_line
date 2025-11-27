@@ -213,11 +213,12 @@
                     <div class="text-gray-700">
                       Score: <span class="font-semibold">{Map.get(player, :score, 0)}</span>
                     </div>
-
-                    <div class="text-gray-700">
-                      Held:
-                      <span class="font-semibold">{Map.get(player, :held_piece, "None")}</span>
-                    </div>
+                      <div class="text-gray-700">
+                        Held:
+                        <span class="font-semibold">
+                        <%= BlocTheLine.Rooms.get_assigned_piece(@room_code, player.id) || "None" %>
+                       </span>
+                      </div>
                   </div>
                 </div>
               <% end %>
