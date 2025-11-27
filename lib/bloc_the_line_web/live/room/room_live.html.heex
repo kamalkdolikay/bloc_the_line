@@ -211,12 +211,14 @@
                     </div>
 
                     <div class="text-gray-700">
-                      Score: <span class="font-semibold">{Map.get(player, :score, 0)}</span>
+                      Score: <span class="font-semibold"><%= @scores[player.id] || 0 %></span>
                     </div>
+
 
                     <div class="text-gray-700">
                       Held:
-                      <span class="font-semibold">{Map.get(player, :held_piece, "None")}</span>
+                        <span class="font-semibold"><%= player.model.current_piece || "None" %></span>
+
                     </div>
                   </div>
                 </div>

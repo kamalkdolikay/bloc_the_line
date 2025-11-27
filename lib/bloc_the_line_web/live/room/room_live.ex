@@ -132,7 +132,12 @@ defmodule BlocTheLineWeb.RoomLive do
                    Map.get(room_state.player_corners || %{}, player_id, {0, 0})
                  )
                  |> assign(:last_placed_position, Map.get(room_state, :last_placed_position, nil))
-                 |> assign(:assigned_piece, assigned_piece)}
+                 |> assign(:assigned_piece, assigned_piece)
+                 |> assign(:game_over, false)
+                 |> assign(:winner_id, nil)
+                 |> assign(:scores, %{})
+                 |> assign(:player_pieces, Map.get(room_state, :player_pieces, %{}))
+                }
 
               {:error, :room_not_found} ->
                 {:ok, socket |> put_flash(:error, "Room not found") |> push_navigate(to: ~p"/")}
@@ -195,7 +200,9 @@ defmodule BlocTheLineWeb.RoomLive do
          |> assign(:game_started, false)
          |> assign(:player_corners, %{})
          |> assign(:my_corner, {0, 0})
-         |> assign(:last_placed_position, nil)}
+         |> assign(:last_placed_position, nil)
+         |> assign(:player_pieces, %{})
+        }
       end
     end
   end
@@ -348,15 +355,20 @@ defmodule BlocTheLineWeb.RoomLive do
   end
 
   def handle_info({:piece_assigned, player_id, piece_name}, socket) do
+    player_pieces =
+      socket.assigns.player_pieces
+      |> Map.put(player_id, piece_name)
+    socket = assign(socket, :player_pieces, player_pieces)
     # Only update if this is for the current player
-    if player_id == socket.assigns.player_id do
-      {:noreply,
-       socket
-       |> assign(:assigned_piece, piece_name)
-       |> push_event("piece_assigned", %{piece_name: piece_name})}
-    else
-      {:noreply, socket}
-    end
+    socket =
+      if player_id == socket.assigns.player_id do
+        socket
+         |> assign(:assigned_piece, piece_name)
+         |> push_event("piece_assigned", %{piece_name: piece_name})
+      else
+        socket
+      end
+    {:noreply, socket}
   end
 
   # Player joined/left handlers
@@ -395,6 +407,25 @@ defmodule BlocTheLineWeb.RoomLive do
 
     {:noreply, assign(socket, players: players)}
   end
+  def handle_info({:scores_updated, scores}, socket) do
+    {:noreply, assign(socket, :scores, scores)}
+  end
+  def handle_info({:player_updated, player_id, new_player}, socket) do
+    players = Map.put(socket.assigns.players, player_id, new_player)
+    {:noreply, assign(socket, :players, players)}
+  end
+
+  def handle_info({:game_over, winner_id, scores}, socket) do
+    Logger.info("Game over! Winner=#{inspect(winner_id)} scores=#{inspect(scores)}")
+
+    {:noreply,
+     socket
+     |> assign(:game_over, true)
+     |> assign(:winner_id, winner_id)
+     |> assign(:scores, scores)
+     |> push_event("game_over", %{winner_id: winner_id, scores: scores})}
+  end
+
 
   def handle_event("piece_changed", %{"piece" => piece}, socket) do
     players =

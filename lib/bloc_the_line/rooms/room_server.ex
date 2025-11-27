@@ -2,6 +2,8 @@ defmodule BlocTheLine.Rooms.RoomServer do
   use GenServer
   require Logger
   alias Pieces
+  alias Player
+  alias GameTimer
 
   def start_link(room_code) do
     GenServer.start_link(__MODULE__, room_code, name: via_tuple(room_code))
@@ -67,6 +69,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
       board: Board.new(20, 20, 4),
       created_at: DateTime.utc_now(),
       game_started: false,
+      game_over: false,
       next_player_color: 1,
       public: false,
       # ref => player_id
@@ -78,7 +81,9 @@ defmodule BlocTheLine.Rooms.RoomServer do
       # player_id => %{piece: :F, coord: {3, 5}}
       player_positions: %{},
       # player_id => piece_name (e.g. "L4")
-      player_pieces: %{}
+      player_pieces: %{},
+      # game timer reference
+      timer_ref: nil
     }
 
     Logger.info("Room #{room_code} created")
@@ -109,12 +114,18 @@ defmodule BlocTheLine.Rooms.RoomServer do
           player_id = generate_player_id()
           player_color = state.next_player_color
 
+          joined_at = DateTime.utc_now()
+
+          # Player model (board_location/start_location will be set when game starts)
+          player_model = Player.new(player_name, {0, 0})
+
           new_player = %{
             id: player_id,
             name: player_name,
             color: player_color,
             ready: false,
-            joined_at: DateTime.utc_now()
+            joined_at: joined_at,
+            model: player_model
           }
 
           ref = Process.monitor(from_pid)
@@ -174,31 +185,51 @@ defmodule BlocTheLine.Rooms.RoomServer do
   # Sets the game_started variable to true to start the game
   @impl true
   def handle_call(:start_game, _from, state) do
-    # Assign corners to players based on their colors
-    player_corners = assign_corners_to_players(state.players)
+    # Assign corners & update player models
+    {player_corners, updated_players} = assign_corners_to_players(state.players)
 
-    # Assign random pieces to all players
+    # Cancel previous timer if any
+    GameTimer.cancel_timer(state.timer_ref)
+    timer_ref = GameTimer.start_timer()
+
     new_pieces =
-      state.players
+      updated_players
       |> Map.keys()
       |> Enum.reduce(%{}, fn player_id, acc ->
         random_piece = Pieces.random_starting_piece_name()
         Map.put(acc, player_id, random_piece)
       end)
 
+    updated_players_with_models =
+      Enum.reduce(new_pieces, updated_players, fn {player_id, piece_name}, acc ->
+        player = acc[player_id]
+        updated_model = %Player{player.model | current_piece: piece_name}
+        Map.put(acc, player_id, %{player | model: updated_model})
+      end)
+
     new_state = %{
       state
       | game_started: true,
+        game_over: false,
         player_corners: player_corners,
-        player_pieces: new_pieces
+        player_pieces: new_pieces,
+        players: updated_players_with_models,
+        timer_ref: timer_ref
     }
 
-    # Broadcast piece assignments to all players
+    # Broadcast starting piece to each player
     Enum.each(new_pieces, fn {player_id, piece_name} ->
       Phoenix.PubSub.broadcast(
         BlocTheLine.PubSub,
         "room:#{state.room_code}",
         {:piece_assigned, player_id, piece_name}
+      )
+
+      # Broadcast model update so HEEx updates Held UI
+      Phoenix.PubSub.broadcast(
+        BlocTheLine.PubSub,
+        "room:#{state.room_code}",
+        {:player_updated, player_id, updated_players_with_models[player_id]}
       )
     end)
 
@@ -260,49 +291,82 @@ defmodule BlocTheLine.Rooms.RoomServer do
     {:reply, Map.values(state.players), state}
   end
 
-  @impl true
   def handle_call({:place_piece, player_id, row, col, cells}, _from, state) do
-    player_color = get_in(state.players, [player_id, :color]) || 1
-    player_atom = color_to_player(player_color)
-    player_corner = Map.get(state.player_corners, player_id)
+    if state.game_over do
+      {:reply, {:error, :game_over}, state}
+    else
+      player = Map.fetch!(state.players, player_id)
+      player_color = player.color || 1
+      player_atom = color_to_player(player_color)
+      player_corner = Map.get(state.player_corners, player_id)
 
-    # Convert cells to a Piece struct
-    piece = cells_to_piece(cells)
+      piece = cells_to_piece(cells)
 
-    # Use Board.add_piece with validation, passing the player's assigned corner
-    case Board.add_piece(state.board, piece, {col, row}, player_atom, player_corner) do
-      {:ok, new_board} ->
-        # Assign a new random piece after successful placement
-        random_piece = Pieces.random_starting_piece_name()
-        new_pieces = Map.put(state.player_pieces, player_id, random_piece)
-        new_state = %{state | board: new_board, player_pieces: new_pieces}
+      case Board.add_piece(state.board, piece, {col, row}, player_atom, player_corner) do
+        {:ok, new_board} ->
+          random_piece = Pieces.random_starting_piece_name()
 
-        Phoenix.PubSub.broadcast(
-          BlocTheLine.PubSub,
-          "room:#{state.room_code}",
-          {:piece_placed, player_id, row, col, cells, new_board}
-        )
+          updated_model =
+            player.model
+            |> Player.add_points_by_piece(piece)      # score update
+            |> Map.put(:current_piece, random_piece)  # update held piece
 
-        Phoenix.PubSub.broadcast(
-          BlocTheLine.PubSub,
-          "room:#{state.room_code}",
-          {:piece_assigned, player_id, random_piece}
-        )
+          updated_player = %{player | model: updated_model}
 
-        Logger.info(
-          "#{player_id} (#{player_atom}) placed piece at (#{row}, #{col}) in room #{state.room_code}"
-        )
+          updated_players =
+            Map.put(state.players, player_id, updated_player)
 
-        {:reply, {:ok, new_board}, new_state}
+          # Update player_pieces map
+          new_player_pieces =
+            Map.put(state.player_pieces, player_id, random_piece)
 
-      {:err, _board} ->
-        Logger.warning(
-          "#{player_id} (#{player_atom}) failed to place piece at (#{row}, #{col}) - invalid placement"
-        )
+          new_state = %{
+            state
+            | board: new_board,
+              players: updated_players,
+              player_pieces: new_player_pieces
+          }
+          Phoenix.PubSub.broadcast(
+            BlocTheLine.PubSub,
+            "room:#{state.room_code}",
+            {:piece_placed, player_id, row, col, cells, new_board}
+          )
 
-        {:reply, {:error, :invalid_placement}, state}
+          Phoenix.PubSub.broadcast(
+            BlocTheLine.PubSub,
+            "room:#{state.room_code}",
+            {:piece_assigned, player_id, random_piece}
+          )
+
+          Phoenix.PubSub.broadcast(
+            BlocTheLine.PubSub,
+            "room:#{state.room_code}",
+            {:scores_updated, compute_scores(updated_players)}
+          )
+
+          Phoenix.PubSub.broadcast(
+            BlocTheLine.PubSub,
+            "room:#{state.room_code}",
+            {:player_updated, player_id, updated_player}
+          )
+
+          Logger.info(
+            "#{player_id} (#{player_atom}) placed piece at (#{row}, #{col}) in room #{state.room_code}"
+          )
+
+          {:reply, {:ok, new_board}, new_state}
+
+        {:err, _board} ->
+          Logger.warning(
+            "#{player_id} (#{player_atom}) failed to place piece - invalid placement"
+          )
+
+          {:reply, {:error, :invalid_placement}, state}
+      end
     end
   end
+
+
 
   @impl true
   def handle_call({:update_name, player_id, new_name}, _from, state) do
@@ -311,7 +375,8 @@ defmodule BlocTheLine.Rooms.RoomServer do
         {:reply, {:error, :player_not_found}, state}
 
       player ->
-        updated_player = Map.put(player, :name, new_name)
+        updated_model = %Player{player.model | name: new_name}
+        updated_player = %{player | name: new_name, model: updated_model}
         new_players = Map.put(state.players, player_id, updated_player)
         new_state = %{state | players: new_players}
 
@@ -382,6 +447,29 @@ defmodule BlocTheLine.Rooms.RoomServer do
   end
 
   @impl true
+  def handle_info(:game_over_timeout, state) do
+    # Prevent double-processing if somehow fired after already marked game_over
+    if state.game_over do
+      {:noreply, state}
+    else
+      scores = compute_scores(state.players)
+      winner_id = compute_winner(state.players)
+
+      Logger.info(
+        "Game over by timer in room #{state.room_code}, winner=#{inspect(winner_id)} scores=#{inspect(scores)}"
+      )
+
+      Phoenix.PubSub.broadcast(
+        BlocTheLine.PubSub,
+        "room:#{state.room_code}",
+        {:game_over, winner_id, scores}
+      )
+
+      {:noreply, %{state | game_over: true, timer_ref: nil}}
+    end
+  end
+
+  @impl true
   def handle_info({:DOWN, ref, :process, _pid, _reason}, state) do
     case Map.pop(state.monitors, ref) do
       {nil, _monitors} ->
@@ -427,7 +515,6 @@ defmodule BlocTheLine.Rooms.RoomServer do
   defp color_to_player(3), do: :p3
   defp color_to_player(4), do: :p4
 
-  # Assign corners to players based on player count
   defp assign_corners_to_players(players) do
     player_count = map_size(players)
 
@@ -444,9 +531,36 @@ defmodule BlocTheLine.Rooms.RoomServer do
     players
     |> Enum.sort_by(fn {_id, player} -> player.color end)
     |> Enum.with_index()
-    |> Enum.into(%{}, fn {{player_id, _player}, index} ->
-      {player_id, Enum.at(corners, index)}
+    |> Enum.reduce({%{}, players}, fn {{player_id, player}, index},
+                                      {corner_map, players_acc} ->
+      corner = Enum.at(corners, index)
+
+      updated_model = %Player{
+        player.model
+        | start_location: corner,
+          board_location: corner
+      }
+
+      updated_player = %{player | model: updated_model}
+
+      {
+        Map.put(corner_map, player_id, corner),
+        Map.put(players_acc, player_id, updated_player)
+      }
     end)
+  end
+
+  defp compute_scores(players) do
+    players
+    |> Enum.into(%{}, fn {id, player} ->
+      {id, player.model.points}
+    end)
+  end
+
+  defp compute_winner(players) do
+    players
+    |> Enum.max_by(fn {_id, player} -> player.model.points end, fn -> {nil, %{model: %{points: 0}}} end)
+    |> elem(0)
   end
 
   # Convert cells from JS format to a Piece struct
