@@ -7,7 +7,7 @@ defmodule GameTimer do
   """
 
   # default game timer
-  @default_timer_duration_seconds 300
+  @default_timer_duration_seconds 30
 
   @doc """
   Starts a new game over timer.

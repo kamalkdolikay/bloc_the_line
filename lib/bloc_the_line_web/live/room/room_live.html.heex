@@ -195,9 +195,14 @@
                   end %>
 
                 <div class={
-      "player-card absolute #{pos} m-2 bg-white/90 rounded-lg shadow-md 
-       px-3 py-2 flex items-center gap-2 z-50"
-    }>
+                  "player-card absolute #{pos} m-2 rounded-lg px-3 py-2 flex items-center gap-2 z-50 " <>
+                    if @game_over and player.id == @winner_id do
+                      "bg-yellow-200 shadow-xl border-4 border-yellow-500 animate-pulse"
+                    else
+                      "bg-white/90 shadow-md border border-gray-200"
+                    end
+                }>
+
                   <img
                     src={icon}
                     alt="Player Icon"
@@ -205,10 +210,16 @@
                   />
 
                   <div class="text-xs leading-tight">
-                    <div class="font-semibold text-gray-800">
+                    <div class="font-semibold text-gray-800 flex items-center">
                       {player.name}
+
+                      <%= if @game_over and player.id == @winner_id do %>
+                        <span class="ml-1 text-yellow-500 text-lg">👑</span>
+                      <% end %>
+
                       <span class="ml-1 text-[10px] text-gray-500">(P{player.color})</span>
                     </div>
+
 
                     <div class="text-gray-700">
                       Score: <span class="font-semibold"><%= @scores[player.id] || 0 %></span>
