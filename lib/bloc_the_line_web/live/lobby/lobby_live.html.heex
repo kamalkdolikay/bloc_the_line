@@ -97,7 +97,7 @@
     <div>
       <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Join Existing Room</h2>
 
-      <form phx-submit="join_room">
+      <form phx-submit="join_room" phx-hook="JoinRoomValidation" id="join-room-form">
         <input
           type="text"
           name="player_name"

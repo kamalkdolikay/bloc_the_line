@@ -87,88 +87,73 @@ defmodule BlocTheLine.Rooms.RoomServer do
 
   @impl true
   def handle_call({:join, player_name}, {from_pid, _ref} = _from, state) do
-    if map_size(state.players) >= 4 do
-      {:reply, {:error, :room_full}, state}
-    else
-      # Check for duplicate names (case-insensitive)
-      name_exists? =
-        state.players
-        |> Map.values()
-        |> Enum.any?(fn player ->
-          String.downcase(player.name) == String.downcase(player_name)
-        end)
+    cond do
+      state.game_started ->
+        {:reply, {:error, :game_already_started}, state}
 
-      if name_exists? do
-        {:reply, {:error, :duplicate_name}, state}
-      else
-        player_id = generate_player_id()
-        player_color = state.next_player_color
+      map_size(state.players) >= 4 ->
+        {:reply, {:error, :room_full}, state}
 
-        new_player = %{
-          id: player_id,
-          name: player_name,
-          color: player_color,
-          ready: false,
-          joined_at: DateTime.utc_now()
-        }
+      true ->
+        # Check for duplicate names
+        name_exists? =
+          state.players
+          |> Map.values()
+          |> Enum.any?(fn player ->
+            String.downcase(player.name) == String.downcase(player_name)
+          end)
 
-        # Monitor the caller process so we can remove the player on disconnect
-        ref = Process.monitor(from_pid)
+        if name_exists? do
+          {:reply, {:error, :duplicate_name}, state}
+        else
+          player_id = generate_player_id()
+          player_color = state.next_player_color
 
-        Logger.debug(
-          "Monitoring pid=#{inspect(from_pid)} ref=#{inspect(ref)} for player=#{player_id}"
-        )
+          new_player = %{
+            id: player_id,
+            name: player_name,
+            color: player_color,
+            ready: false,
+            joined_at: DateTime.utc_now()
+          }
 
-        # record the monitor ref -> player_id and player_id -> ref so we can cleanup on DOWN
-        monitors = Map.put(state.monitors, ref, player_id)
-        player_refs = Map.put(state.player_refs, player_id, ref)
+          ref = Process.monitor(from_pid)
 
-        new_state =
-          state
-          |> put_in([:players, player_id], new_player)
-          # cycle the color
-          |> Map.put(:next_player_color, rem(player_color, 4) + 1)
-          |> Map.put(:monitors, monitors)
-          |> Map.put(:player_refs, player_refs)
+          Logger.debug(
+            "Monitoring pid=#{inspect(from_pid)} ref=#{inspect(ref)} for player=#{player_id}"
+          )
 
-        # Assign host_id if this is the first player
-        new_state =
-          if map_size(state.players) == 0 do
-            Map.put(new_state, :host_id, player_id)
-          else
-            new_state
-          end
+          monitors = Map.put(state.monitors, ref, player_id)
+          player_refs = Map.put(state.player_refs, player_id, ref)
 
-        # Assign a random piece if game has started
-        new_state =
-          if new_state.game_started do
-            random_piece = Pieces.random_starting_piece_name()
-            new_pieces = Map.put(new_state.player_pieces, player_id, random_piece)
-            new_state = %{new_state | player_pieces: new_pieces}
+          new_state =
+            state
+            |> put_in([:players, player_id], new_player)
+            # cycle the color
+            |> Map.put(:next_player_color, rem(player_color, 4) + 1)
+            |> Map.put(:monitors, monitors)
+            |> Map.put(:player_refs, player_refs)
 
-            Phoenix.PubSub.broadcast(
-              BlocTheLine.PubSub,
-              "room:#{state.room_code}",
-              {:piece_assigned, player_id, random_piece}
-            )
+          # Assign host_id if this is the first player
+          new_state =
+            if map_size(state.players) == 0 do
+              Map.put(new_state, :host_id, player_id)
+            else
+              new_state
+            end
 
-            new_state
-          else
-            new_state
-          end
+          Phoenix.PubSub.broadcast(
+            BlocTheLine.PubSub,
+            "room:#{state.room_code}",
+            {:player_joined, new_player}
+          )
 
-        Phoenix.PubSub.broadcast(
-          BlocTheLine.PubSub,
-          "room:#{state.room_code}",
-          {:player_joined, new_player}
-        )
+          Logger.info(
+            "Player #{player_name} (#{player_id}) joined room #{state.room_code} as color #{player_color}"
+          )
 
-        Logger.info(
-          "Player #{player_name} (#{player_id}) joined room #{state.room_code} as color #{player_color}"
-        )
-
-        {:reply, {:ok, player_id}, new_state}
-      end
+          {:reply, {:ok, player_id}, new_state}
+        end
     end
   end
 

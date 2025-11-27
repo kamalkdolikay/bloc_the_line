@@ -149,6 +149,15 @@ defmodule BlocTheLineWeb.RoomLive do
                  )
                  |> push_navigate(to: ~p"/?room_code=#{room_code}")}
 
+              {:error, :game_already_started} ->
+                {:ok,
+                 socket
+                 |> put_flash(
+                   :error,
+                   "This game has already started. You cannot join a game in progress."
+                 )
+                 |> push_navigate(to: ~p"/")}
+
               {:error, reason} ->
                 Logger.warning("Failed to join room #{inspect(room_code)}: #{inspect(reason)}")
 
@@ -278,7 +287,11 @@ defmodule BlocTheLineWeb.RoomLive do
   end
 
   # handle player position updates from frontend
-  def handle_event("update_position", %{"piece" => piece, "row" => row, "col" => col, "cells" => cells, "anchor" => anchor}, socket) do
+  def handle_event(
+        "update_position",
+        %{"piece" => piece, "row" => row, "col" => col, "cells" => cells, "anchor" => anchor},
+        socket
+      ) do
     coord = {col, row}
 
     # Update position in the Rooms module
