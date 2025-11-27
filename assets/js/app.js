@@ -188,10 +188,6 @@ const localHooks = {
         const r = tileEl.getBoundingClientRect();
         tileW = Math.round(r.width);
         tileH = Math.round(r.height);
-        this.tileW = tileW;
-        this.tileH = tileH;
-  
-        this.tileReady = true;
     
         renderShape();
       };      
