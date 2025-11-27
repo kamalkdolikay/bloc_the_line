@@ -12,7 +12,6 @@ defmodule BlocTheLineWeb.BlokusBoard do
     ~H"""
     <div
       id="blokus-board"
-      phx-hook="DebugBoard"
       class="inline-block border border-gray-400 relative"
     >
       <%= for {row, row_index} <- Enum.with_index(@grid) do %>
