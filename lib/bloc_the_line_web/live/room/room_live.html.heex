@@ -110,7 +110,10 @@
               data-cols="20"
               style="position: relative; display: inline-block;"
             >
-              <.blokus_board board={@board} />
+              <.blokus_board 
+                  board={@board} 
+                  opponents={@opponents_positions} 
+                />
               <div class="moving-block" data-row="0" data-col="0"></div>
               <!-- leave in for use with JS measurements -->
               <div

@@ -81,7 +81,14 @@ defmodule BlocTheLine.Rooms do
   # updates the players position
   def update_position(room_code, player_id, piece, coord) do
     case room_exists?(room_code) do
-      true -> RoomServer.update_position(room_code, player_id, piece, coord)
+      true ->
+        result = RoomServer.update_position(room_code, player_id, piece, coord)
+        Phoenix.PubSub.broadcast(
+        BlocTheLine.PubSub,
+        "room:#{room_code}",
+        {:position_updated, player_id, piece, coord}
+        )
+        result
       false -> {:error, :room_not_found}
     end
   end

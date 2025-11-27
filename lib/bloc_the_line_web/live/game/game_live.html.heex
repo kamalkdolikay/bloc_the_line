@@ -16,23 +16,30 @@
     <.player_card class="absolute top-30 right-0" name="Placeholder Name" />
     <.player_card class="absolute bottom-30 left-0" name="Placeholder Name" />
     <.player_card class="absolute bottom-30 right-0" name="Placeholder Name" />
-    <div
-     id="moving-block-container"
-     phx-hook="MovingBlock"
-     data-player={@current_player}   
-     data-pieces={Jason.encode!(@pieces)}
-     data-rows="20"
-     data-cols="20"
-     style="position: relative; display: inline-block;"
-    >
 
-      <.blokus_board board={@board} />
-      <div class="moving-block" data-row="0" data-col="0"></div>
-      <!-- leave in for use with JS measurements -->
+    <div id="board-container" style="position: relative; display: inline-block;">
+      <.blokus_board 
+        board={@board} 
+        opponents={@opponents_positions} 
+      />
+
+      <!-- moving block inside the board container -->
       <div
-        class="blokus-tile w-8 h-8"
-        style="position: absolute; opacity: 0; pointer-events: none;"
+        id="moving-block-container"
+        phx-hook="MovingBlock"
+        phx-update="ignore"
+        data-player={@current_player}
+        data-pieces={Jason.encode!(@pieces)}
+        data-rows="20"
+        data-cols="20"
+        style="position: absolute; top: 0; left: 0;"
       >
+        <div id="moving-block" class="moving-block" data-row="0" data-col="0"></div>
+        <!-- leave in for use with JS measurements -->
+        <div
+          class="blokus-tile w-8 h-8"
+          style="opacity: 0; pointer-events: none;"
+        ></div>
       </div>
     </div>
   </div>

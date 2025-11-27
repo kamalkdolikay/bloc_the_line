@@ -63,7 +63,9 @@ defmodule BlocTheLineWeb.RoomLive do
                |> assign(:host_id, room_state.host_id)
                |> assign(:game_started, room_state.game_started)
                |> assign(:player_positions, room_state.player_positions)
+               |> assign(:opponents_positions, %{})
                |> assign(:copied, false)}
+
 
             {:error, :room_not_found} ->
               {:ok,
@@ -201,13 +203,15 @@ defmodule BlocTheLineWeb.RoomLive do
 
   # handle player position updates from frontend
   def handle_event("update_position", %{"piece" => piece, "row" => row, "col" => col}, socket) do
-    coord = {col, row}
+    player = socket.assigns.player_id
+    row = if is_binary(row), do: String.to_integer(row), else: row
+    col = if is_binary(col), do: String.to_integer(col), else: col
 
     Rooms.update_position(
       socket.assigns.room_code,
-      socket.assigns.player_id,
+      player,
       piece,
-      coord
+      {col, row}
     )
 
     {:noreply, socket}
@@ -260,26 +264,33 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, assign(socket, :board, new_board)}
   end
 
+  # serve player position updates to frontend
+  def handle_info({:position_updated, player_id, _piece, {col, row}}, socket) do
+    # Skip your own updates — do not show ghost overlay for yourself
+    if player_id == socket.assigns.player_id do
+      {:noreply, socket}
+    else
+      color = get_in(socket.assigns.players, [player_id, :color])
+
+      updated =
+        Map.put(socket.assigns.opponents_positions, player_id, %{
+          row: row,
+          col: col,
+          color: color
+        })
+
+      {:noreply, assign(socket, :opponents_positions, updated)}
+    end
+  end
+
+
+
+
   # Check if all players are ready
   defp all_ready?(players) do
     Enum.all?(players, fn {_id, player} -> player.ready end)
   end
 
-  # serve player position updates to frontend
-  def handle_info({:position_updated, player_id, piece, coord}, socket) do
-    {col, row} = coord
-
-    {:noreply,
-     socket
-     |> push_event("position_updated", %{
-       player_id: player_id,
-       piece: piece,
-       row: row,
-       col: col,
-       # send the colour of the updated piece so frontend knows how to render it
-       color: get_in(socket.assigns.players, [player_id, :color])
-     })}
-  end
 
   def terminate(_reason, socket) do
     if socket.assigns[:player_id],

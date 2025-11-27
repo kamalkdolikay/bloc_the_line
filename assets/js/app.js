@@ -35,7 +35,6 @@ const localHooks = {
   MovingBlock: {
     mounted() {
       const container = this.el;
-
       // read grid size from data attributes
       const rows = parseInt(container.dataset.rows, 10) || 0;
       const cols = parseInt(container.dataset.cols, 10) || 0;
@@ -187,8 +186,13 @@ const localHooks = {
         const r = tileEl.getBoundingClientRect();
         tileW = Math.round(r.width);
         tileH = Math.round(r.height);
+        this.tileW = tileW;
+        this.tileH = tileH;
+  
+        this.tileReady = true;
+    
         renderShape();
-      };
+      };      
 
       // keyboard handling: WASD or arrow keys, plus shape controls
       const keyHandler = (e) => {
@@ -357,12 +361,6 @@ const localHooks = {
 
           return;
         }
-
-        // receives other players' positions
-        this.handleEvent("position_updated", ({ player_id, piece, row, col, color }) => {
-          // TODO: render other players somehow
-          console.log(`[TODO] player ${player_id} (color ${color}): ${piece} at (${row}, ${col})`);
-        });
 
         if (moved || ["]", "["].includes(key)) {
           e.preventDefault();
