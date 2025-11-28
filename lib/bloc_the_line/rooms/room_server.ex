@@ -59,7 +59,6 @@ defmodule BlocTheLine.Rooms.RoomServer do
     GenServer.call(via_tuple(room_code), {:get_assigned_piece, player_id})
   end
 
-  # TODO: Add the corners
   @impl true
   def init(room_code) do
     state = %{
@@ -105,7 +104,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
           new_player = Player.new(
             player_name,
             state.next_player_color,
-            {0, 0},                 # TODO: add that players' corner
+            {0, 0}, # Just a default corner
             DateTime.utc_now()
           )
 
@@ -175,7 +174,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
   @impl true
   def handle_call(:start_game, _from, state) do
     # Assign corners to players based on their colors
-    player_corners = assign_corners_to_players(state.players)
+    player_corners = assign_corners_to_players(state.players, state.board)
 
     # Assign random pieces to all players
     # Map from player_id to random_piece (Piece)
@@ -454,18 +453,17 @@ defmodule BlocTheLine.Rooms.RoomServer do
 
   # Assign corners to players based on player count
   # Returns a map from player_id to a corner coordinate
-  defp assign_corners_to_players(players) do
+  defp assign_corners_to_players(players, board) do
     player_count = map_size(players)
 
     corners =
       case player_count do
-        # TODO: Change this to use the board size instead
         # Opposite corners for 2 players
-        2 -> [{0, 0}, {19, 19}]
+        2 -> [{0, 0}, {board.width - 1, board.height - 1}]
         # Three corners, avoiding one
-        3 -> [{0, 0}, {19, 0}, {0, 19}]
+        3 -> [{0, 0}, {board.width - 1, 0}, {0, board.height - 1}]
         # All four corners
-        _ -> [{0, 0}, {19, 0}, {0, 19}, {19, 19}]
+        _ -> [{0, 0}, {board.width - 1, 0}, {0, board.height - 1}, {board.width - 1, board.height - 1}]
       end
 
     players
