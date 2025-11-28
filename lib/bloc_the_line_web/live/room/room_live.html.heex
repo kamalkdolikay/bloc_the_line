@@ -79,24 +79,24 @@
         <div class="p-6">
           <h2 class="text-xl font-semibold mb-4">Players ({map_size(@players)})</h2>
           <!-- Ready Button -->
-          <div class="space-y-3">
+          <div class="flex flex-col space-y-3">
             <%= for {id, player} <- @players do %>
-              <div class={
-                cond do
-                  player.id == @player_id ->
-                    "flex items-center gap-3 p-3 border-4 transition transform " <>
-                      case player.color do
-                        1 -> "border-blue-500"
-                        2 -> "border-red-500"
-                        3 -> "border-green-500"
-                        4 -> "border-purple-500"
-                        _ -> "border-gray-500"
-                      end
-
-                  true ->
-                    "flex items-center gap-3 bg-gray-50 rounded-lg p-3 border border-gray-200 transition"
+            <div class={
+              "flex items-center gap-6 p-3 transition rounded " <>
+                if player.id == @player_id do
+                  "border-4 " <>
+                    case player.color do
+                      1 -> "border-blue-500"
+                      2 -> "border-red-500"
+                      3 -> "border-green-500"
+                      4 -> "border-purple-500"
+                      _ -> "border-gray-500"
+                    end
+                else
+                  ""
                 end
-              }>
+            }>
+              
                 <div class={"w-10 h-10 rounded-full flex items-center justify-center text-white font-bold #{
                   case player.color do
                     1 -> "bg-blue-500"
@@ -108,7 +108,7 @@
                 }"}>
                   {BlocTheLineWeb.RoomLive.get_avatar_initial(player.name)}
                 </div>
-                <div class="flex-1">
+                <div class="flex flex-col">
                   <p class="font-semibold">
                     {player.name}
                     <span class="text-sm text-gray-400">(P{player.color})</span>
@@ -127,18 +127,20 @@
                   <%= if player.id == @player_id do %>
                     <p class="text-xs text-blue-500">You</p>
                   <% end %>
-                  <p class="text-xs">
-                    {if player.ready, do: "Ready", else: "Not Ready"}
-                  </p>
-                  <%= if id == @player_id do %>
-                    <button
-                      phx-click="toggle_ready"
-                      phx-value-ready={"#{if player.ready == true, do: "false", else: "true"}"}
-                      class="ml-2 px-2 py-1 rounded bg-blue-700 text-white hover:bg-blue-600"
-                    >
-                      {if player.ready == true, do: "Unready", else: "Ready"}
-                    </button>
-                  <% end %>
+                  <div class="mt-2">
+                    <p class="text-xs mb-1">
+                      {if player.ready, do: "Ready", else: "Not Ready"}
+                    </p>
+                    <%= if id == @player_id do %>
+                      <button
+                        phx-click="toggle_ready"
+                        phx-value-ready={"#{if player.ready == true, do: "false", else: "true"}"}
+                        class="text-sm px-2 py-1 rounded bg-blue-700 text-white hover:bg-blue-600"
+                      >
+                        {if player.ready == true, do: "Unready", else: "Ready"}
+                      </button>
+                    <% end %>
+                  </div>
                 </div>
               </div>
             <% end %>
