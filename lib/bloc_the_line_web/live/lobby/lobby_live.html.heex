@@ -1,8 +1,6 @@
-<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem;">
-  <div style="width: 100%; max-width: 400px;">
-    <h1 style="text-align: center; font-size: 2rem; margin-bottom: 0.5rem;">Bloc the Line</h1>
-
-    <p style="text-align: center; margin-bottom: 1.5rem;">Blokus Multiplayer</p>
+<div class="bg-neutral-900" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+  <div class="flex flex-col items-center" style="width: 100%; max-width: 400px;">
+    <h1  style="text-align: center; font-size: 4rem; margin-bottom: 3rem;">Bloc the Line</h1>
 
     <%= if @flash[:error] do %>
       <div
@@ -26,7 +24,7 @@
     <!-- Public rooms list: clicking Join will prefill the lobby form and trigger browser validation -->
     <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Public Rooms</h2>
 
-    <div style="margin-bottom: 1rem;">
+    <div style="margin-bottom: 3rem;">
       <%= if Enum.empty?(@public_rooms || []) do %>
         <p style="color: #666;">No public rooms right now.</p>
       <% else %>
@@ -41,7 +39,7 @@
           <% end %>
 
           <%= for room <- @public_rooms do %>
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem; border:1px solid #ddd; gap:0.75rem; flex-wrap:nowrap;">
+            <div class="w-100 bg-neutral-800 rounded" style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem; gap:0.75rem; flex-wrap:nowrap;">
               <div style="min-width:0; flex:1; display:flex; flex-direction:column;">
                 <strong style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                   {room.room_code}
@@ -57,7 +55,7 @@
                   type="button"
                   title="Join as guest (or use name above)"
                   style="cursor: pointer;"
-                  class="inline-block px-2 py-1 border border-black text-sm rounded"
+                  class="bg-blue-700 hover:bg-blue-600 inline-block px-2 py-1 text-sm rounded"
                 >
                   Join
                 </button>
@@ -68,17 +66,18 @@
       <% end %>
     </div>
 
-    <div style="margin-bottom: 2rem;">
-      <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Create New Room</h2>
+    <div style="margin-bottom: 3rem; width: 100%;">
+      <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem; text-align: center">Create New Room</h2>
 
-      <form phx-submit="create_room">
+      <form class="w-100" phx-submit="create_room">
         <input
           type="text"
           name="player_name"
           placeholder="Your Name"
           value={@player_name}
           phx-input="update_player_name"
-          style="width: 100%; padding: 0.5rem; border: 1px solid #aaa; margin-bottom: 0.5rem;"
+          class="bg-neutral-800 rounded"
+          style="width: 100%; padding: 0.5rem; margin-bottom: 0.5rem;"
           required
           maxlength="30"
           pattern="[a-zA-Z0-9\s\-_]+"
@@ -87,7 +86,8 @@
         />
         <button
           type="submit"
-          style="width: 100%; padding: 0.5rem; border: 1px solid #000; background: none; cursor: pointer;"
+          class="rounded bg-blue-700 hover:bg-blue-600"
+          style="width: 100%; padding: 0.5rem; cursor: pointer;"
         >
           Create Room
         </button>
@@ -95,9 +95,9 @@
     </div>
 
     <div>
-      <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Join Existing Room</h2>
+      <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem; text-align: center;">Join Existing Room</h2>
 
-      <form phx-submit="join_room" phx-hook="JoinRoomValidation" id="join-room-form">
+      <form class="flex flex-col justify-center w-100" phx-submit="join_room" phx-hook="JoinRoomValidation" id="join-room-form">
         <input
           type="text"
           name="player_name"
@@ -109,7 +109,8 @@
           maxlength="30"
           pattern="[a-zA-Z0-9\s\-_]+"
           title="Letters, numbers, spaces, hyphens, and underscores only (max 30 characters)"
-          style="width: 100%; padding: 0.5rem; border: 1px solid #aaa; margin-bottom: 0.5rem;"
+          class="bg-neutral-800 rounded"
+          style="width: 100%; padding: 0.5rem; margin-bottom: 0.5rem;"
         />
         <input
           type="text"
@@ -117,13 +118,15 @@
           placeholder="Room Code"
           value={@room_code}
           phx-input="update_room_code"
-          style="width: 100%; padding: 0.5rem; border: 1px solid #aaa; margin-bottom: 0.5rem; text-transform: uppercase;"
+          style="width: 100%; padding: 0.5rem; margin-bottom: 0.5rem; text-transform: uppercase;"
+          class="bg-neutral-800 rounded"
           maxlength="6"
           required
         />
         <button
           type="submit"
-          style="width: 100%; padding: 0.5rem; border: 1px solid #000; background: none; cursor: pointer;"
+          class="rounded bg-blue-700 hover:bg-blue-600"
+          style="padding: 0.5rem; cursor: pointer;"
         >
           Join Room
         </button>
