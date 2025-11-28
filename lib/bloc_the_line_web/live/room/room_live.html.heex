@@ -115,7 +115,7 @@
                   </p>
 
                   <p class="text-xs text-gray-500">
-                    Blocks placed: {case player.color do
+                    Pieces placed: {case player.color do
                       1 -> Map.get(@board.count_map, :p1, 0)
                       2 -> Map.get(@board.count_map, :p2, 0)
                       3 -> Map.get(@board.count_map, :p3, 0)
@@ -234,7 +234,9 @@
 
                     <div class="text-gray-700">
                       Held:
-                      <span class="font-semibold">{Map.get(player, :held_piece, "None")}</span>
+                      <span class="font-semibold">
+                        {BlocTheLine.Rooms.get_assigned_piece(@room_code, player.id) || "None"}
+                      </span>
                     </div>
                   </div>
                 </div>

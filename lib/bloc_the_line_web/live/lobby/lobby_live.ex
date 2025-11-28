@@ -164,6 +164,16 @@ defmodule BlocTheLineWeb.LobbyLive do
     {:noreply, assign(socket, :player_name, value)}
   end
 
+  def handle_event("check_game_started", %{"room_code" => room_code}, socket) do
+    game_started =
+      case Rooms.get_room(room_code) do
+        {:ok, room_state} -> Map.get(room_state, :game_started, false)
+        {:error, _} -> false
+      end
+
+    {:reply, %{game_started: game_started}, socket}
+  end
+
   def handle_info({:room_public_changed, _room_code, _public}, socket) do
     {:noreply, assign(socket, :public_rooms, Rooms.list_public_rooms())}
   end

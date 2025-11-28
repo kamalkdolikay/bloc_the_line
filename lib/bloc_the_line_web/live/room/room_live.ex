@@ -151,11 +151,22 @@ defmodule BlocTheLineWeb.RoomLive do
                  )
                  |> push_navigate(to: ~p"/?room_code=#{room_code}")}
 
+              {:error, :game_already_started} ->
+                {:ok,
+                 socket
+                 |> put_flash(
+                   :error,
+                   "This game has already started. You cannot join a game in progress."
+                 )
+                 |> push_navigate(to: ~p"/")}
+
               {:error, reason} ->
                 Logger.warning("Failed to join room #{inspect(room_code)}: #{inspect(reason)}")
 
                 {:ok,
-                 socket |> put_flash(:error, "Unable to join room") |> push_navigate(to: ~p"/")}
+                 socket
+                 |> put_flash(:error, "Unable to join room")
+                 |> push_navigate(to: ~p"/")}
             end
         end
       else
@@ -282,7 +293,11 @@ defmodule BlocTheLineWeb.RoomLive do
   end
 
   # handle player position updates from frontend
-  def handle_event("update_position", %{"piece" => piece, "row" => row, "col" => col}, socket) do
+  def handle_event(
+        "update_position",
+        %{"piece" => piece, "row" => row, "col" => col, "cells" => cells, "anchor" => anchor},
+        socket
+      ) do
     coord = {col, row}
 
     # Update position in the Rooms module
@@ -290,7 +305,9 @@ defmodule BlocTheLineWeb.RoomLive do
       socket.assigns.room_code,
       socket.assigns.player_id,
       piece,
-      coord
+      coord,
+      cells,
+      anchor
     )
 
     {:noreply, socket}
@@ -436,7 +453,7 @@ defmodule BlocTheLineWeb.RoomLive do
   end
 
   # serve player position updates to frontend
-  def handle_info({:position_updated, player_id, piece, coord}, socket) do
+  def handle_info({:position_updated, player_id, piece, coord, cells, anchor}, socket) do
     {col, row} = coord
 
     {:noreply,
@@ -446,6 +463,8 @@ defmodule BlocTheLineWeb.RoomLive do
        piece: piece,
        row: row,
        col: col,
+       cells: cells,
+       anchor: anchor,
        # send the colour of the updated piece so frontend knows how to render it
        color: get_in(socket.assigns.players, [player_id, :color])
      })}

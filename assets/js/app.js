@@ -128,6 +128,7 @@ const localHooks = {
       let inputBlocked = false;
 
       const remotePieces = {};
+      this.remotePieces = remotePieces;
 
       const colorFromId = (color) => {
         switch (color) {
@@ -144,7 +145,7 @@ const localHooks = {
         }
       };
 
-      const renderRemotePiece = ({ player_id, piece, row, col, color }) => {
+      const renderRemotePiece = ({ player_id, piece, row, col, color, cells, anchor }) => {
         if (!tileW || !tileH) return;
 
         const shape = SHAPES.find((s) => s.name === piece);
@@ -163,11 +164,11 @@ const localHooks = {
           container.appendChild(el);
         }
 
-        const cells = shape.cells;
-        const [anchorX, anchorY] = shape.anchor;
+        const usedCells = cells || shape.cells;
+        const [anchorX, anchorY] = anchor || shape.anchor;
 
-        const xs = cells.map(([x]) => x);
-        const ys = cells.map(([, y]) => y);
+        const xs = usedCells.map(([x]) => x);
+        const ys = usedCells.map(([, y]) => y);
 
         const minX = Math.min(...xs);
         const maxX = Math.max(...xs);
@@ -194,7 +195,7 @@ const localHooks = {
 
         const fill = colorFromId(color);
 
-        cells.forEach(([x, y]) => {
+        usedCells.forEach(([x, y]) => {
           const t = document.createElement("div");
           t.className = "remote-piece-tile";
           t.style.position = "absolute";
@@ -215,8 +216,10 @@ const localHooks = {
           piece: SHAPES[shapeIndex].name,
           row: anchorRow,
           col: anchorCol,
-        })
-      }
+          cells: oriented,
+          anchor: SHAPES[shapeIndex].anchor,
+        });
+      };
 
       function bounds(cells) {
         const xs = cells.map((c) => c[0]);
@@ -535,6 +538,14 @@ const localHooks = {
           this.renderShape(false);
         });
       }
+
+      if (this.remotePieces) {
+        Object.values(this.remotePieces).forEach((el) => {
+          if (!el.parentNode) {
+            this.el.appendChild(el);
+          }
+        });
+      }
     },
     destroyed() {
       if (this.destroy) this.destroy()
@@ -592,6 +603,62 @@ const localHooks = {
         const player_name = nameInput ? nameInput.value : ""
         this.pushEvent("join_public", { room_code: room, player_name })
       })
+    }
+  },
+
+  JoinRoomValidation: {
+    mounted() {
+      const form = this.el;
+      const roomCodeInput = form.querySelector('input[name="room_code"]');
+      const playerNameInput = form.querySelector('input[name="player_name"]');
+      let isValidating = false;
+      
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const roomCode = roomCodeInput.value.trim().toUpperCase();
+        const playerName = playerNameInput.value;
+        
+        console.log("Join form submitted, room code:", roomCode);
+        
+        if (!roomCode) {
+          console.log("No room code provided");
+          return;
+        }
+        
+        if (isValidating) {
+          console.log("Already validating, ignoring submission");
+          return;
+        }
+        
+        isValidating = true;
+        console.log("Checking if game has started for room:", roomCode);
+        
+        // Check with server if game has started
+        this.pushEvent("check_game_started", { room_code: roomCode }, (reply) => {
+          console.log("Server replied:", reply);
+          isValidating = false;
+          
+          if (reply.game_started) {
+            console.log("Game has started, showing validation error");
+            roomCodeInput.setCustomValidity("This game has already started. You cannot join a game in progress.");
+            roomCodeInput.reportValidity();
+            
+            // Reset custom validity when user modifies the field
+            const resetValidity = () => {
+              roomCodeInput.setCustomValidity("");
+              roomCodeInput.removeEventListener("input", resetValidity);
+            };
+            roomCodeInput.addEventListener("input", resetValidity);
+          } else {
+            console.log("Game has not started, triggering join_room event");
+            // Clear any previous custom validity and trigger the join_room event
+            roomCodeInput.setCustomValidity("");
+            this.pushEvent("join_room", { room_code: roomCode, player_name: playerName });
+          }
+        });
+      });
     }
   }
 }
