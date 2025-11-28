@@ -468,6 +468,7 @@ defmodule BlocTheLineWeb.RoomLive do
   # serve player position updates to frontend
   def handle_info({:position_updated, player_id, piece_name, coord, cells, anchor}, socket) do
     {col, row} = coord
+    {anchor_col, anchor_row} = anchor
     player = Map.get(socket.assigns.players, player_id)
 
     {:noreply,
@@ -478,7 +479,7 @@ defmodule BlocTheLineWeb.RoomLive do
        row: row,
        col: col,
        cells: cells,
-       anchor: anchor,
+       anchor: [anchor_col, anchor_row], # Had to cast it because Jason doesn't serialize tuples
        # send the colour of the updated piece so frontend knows how to render it
        color: player.color
      })}

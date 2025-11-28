@@ -192,7 +192,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
     # Updates players with their corners and current piece
     new_players =
       state.players
-      |> Map.new(fn player_id, player ->
+      |> Map.new(fn {player_id, player} ->
         corner = Map.get(player_corners, player_id)
         piece = Map.get(random_pieces, player_id)
         new_player =

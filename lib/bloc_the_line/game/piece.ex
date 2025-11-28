@@ -373,8 +373,10 @@ defmodule Pieces do
   Returns a random piece name from the starting pieces (excluding X piece).
   """
   def random_starting_piece_name() do
-    random_piece_name()
+    @pieces
+    |> Map.keys()
     |> Enum.reject(&(&1 == :X))
+    |> Enum.random()
   end
 
   def all, do: @pieces
