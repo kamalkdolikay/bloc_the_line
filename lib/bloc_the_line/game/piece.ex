@@ -361,14 +361,20 @@ defmodule Pieces do
   }
 
   @doc """
-  Returns a random piece name from the starting pieces (excluding X piece).
+  Returns a random piece name from all pieces (including X piece).
   """
-  def random_starting_piece_name do
+  def random_piece_name() do
     @pieces
     |> Map.keys()
-    |> Enum.reject(&(&1 == :X))
-    |> Enum.map(&Atom.to_string/1)
     |> Enum.random()
+  end
+
+  @doc """
+  Returns a random piece name from the starting pieces (excluding X piece).
+  """
+  def random_starting_piece_name() do
+    random_piece_name()
+    |> Enum.reject(&(&1 == :X))
   end
 
   def all, do: @pieces
