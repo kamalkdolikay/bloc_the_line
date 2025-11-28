@@ -299,9 +299,8 @@ defmodule BlocTheLine.Rooms.RoomServer do
     player = Map.get(state.players, player_id)
     player_atom = color_to_player(player.color)
 
-    # Convert cells to a Piece struct
-    # TODO: Maybe use a function to transform into the pre chosen pieces, OR EVEN BETTER:
-    #       Change this to use the piece name instead
+    # Rebuild the piece from cells because the player might have rotated it
+    # But change its name to the one from the player
     piece = cells_to_piece(cells)
 
     # Use Board.add_piece with validation, passing the player's assigned corner
@@ -311,8 +310,8 @@ defmodule BlocTheLine.Rooms.RoomServer do
         random_piece = Pieces.random_piece_name() |> Pieces.get()
         new_player =
           player
-          |> Player.add_points_by_piece(piece)
-          |> Player.set_current_piece(piece)
+          |> Player.add_points_by_piece(random_piece)
+          |> Player.set_current_piece(random_piece)
 
         new_state = %{state |
           board: new_board,
@@ -531,6 +530,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
   end
 
   # Convert cells from JS format to a Piece struct
+  # ! Important: It uses a placeholder name ("custom")
   defp cells_to_piece(cells) do
     cell_set =
       cells

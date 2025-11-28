@@ -422,7 +422,7 @@ defmodule BlocTheLineWeb.RoomLive do
     socket =
       if socket.assigns.player_id == player.id do
         # Probably the default_color is not needed but Im leaving it for legacy safety
-        default_color = socket.assignns.player_color || 1
+        default_color = socket.assigns.player_color || 1
         assign(socket, :player_color, player.color || default_color)
       else
         socket
