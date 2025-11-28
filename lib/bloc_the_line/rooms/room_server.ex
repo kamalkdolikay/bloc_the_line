@@ -73,7 +73,10 @@ defmodule BlocTheLine.Rooms.RoomServer do
       # ref to player_process => player_id
       monitors: %{},
       # player_id => ref to player_process (backwards map for lookup)
-      player_refs: %{}
+      player_refs: %{},
+      timer_seconds: 60,
+      timer_ref: nil,
+      tick_ref: nil
     }
 
     Logger.info("Room #{room_code} created")
@@ -201,9 +204,17 @@ defmodule BlocTheLine.Rooms.RoomServer do
         {player_id, new_player}
       end)
 
+    # Start the timer - 60 second game timer and tick every second
+    tick_ref = Process.send_after(self(), :timer_tick, 1000)
+    timer_ref = GameTimer.start_timer(60)
+
     new_state = %{
       state
-      | players: new_players
+      | players: new_players,
+        game_started: true,
+        timer_seconds: 60,
+        tick_ref: tick_ref,
+        timer_ref: timer_ref
     }
 
     # Broadcast piece assignments to all players (by their str names)
@@ -219,6 +230,13 @@ defmodule BlocTheLine.Rooms.RoomServer do
       BlocTheLine.PubSub,
       "room:#{state.room_code}",
       {:game_started, player_corners}
+    )
+
+    # Broadcast initial timer value
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "room:#{state.room_code}",
+      {:timer_update, 60}
     )
 
     {:reply, :ok, new_state}
@@ -439,6 +457,43 @@ defmodule BlocTheLine.Rooms.RoomServer do
 
         {:noreply, new_state}
     end
+  end
+
+  # Timer tick handler - decrements timer and broadcasts to clients
+  def handle_info(:timer_tick, state) do
+    new_seconds = max(0, state.timer_seconds - 1)
+
+    # Broadcast the new time to all clients
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "room:#{state.room_code}",
+      {:timer_update, new_seconds}
+    )
+
+    new_state = %{state | timer_seconds: new_seconds}
+
+    if new_seconds == 0 do
+      # Timer expired - cancel tick interval
+      if state.tick_ref, do: Process.cancel_timer(state.tick_ref)
+      {:noreply, %{new_state | tick_ref: nil}}
+    else
+      # Schedule next tick
+      tick_ref = Process.send_after(self(), :timer_tick, 1000)
+      {:noreply, %{new_state | tick_ref: tick_ref}}
+    end
+  end
+
+  # Game over timeout handler
+  def handle_info(:game_over_timeout, state) do
+    Logger.info("Game over timeout reached for room #{state.room_code}")
+
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "room:#{state.room_code}",
+      {:game_over, :timeout}
+    )
+
+    {:noreply, %{state | timer_ref: nil, tick_ref: nil}}
   end
 
   defp via_tuple(room_code) do

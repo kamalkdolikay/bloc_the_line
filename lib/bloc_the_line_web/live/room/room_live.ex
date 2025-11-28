@@ -197,7 +197,8 @@ defmodule BlocTheLineWeb.RoomLive do
          |> assign(:game_started, false)
          |> assign(:my_corner, {0, 0})
          |> assign(:last_placed_position, nil)
-         |> assign(:assigned_piece, nil)}
+         |> assign(:assigned_piece, nil)
+         |> assign(:timer_seconds, 60)}
       end
     end
   end
@@ -319,8 +320,6 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, socket}
   end
 
-
-
   def handle_event("piece_changed", %{"piece" => piece}, socket) do
     # TODO: this and handle_event("piece_change") do the same thing?
     # players =
@@ -361,6 +360,17 @@ defmodule BlocTheLineWeb.RoomLive do
           {:noreply, socket}
       end
     end
+  end
+
+  def handle_info({:timer_update, seconds}, socket) do
+    {:noreply, assign(socket, :timer_seconds, seconds)}
+  end
+
+  def handle_info({:game_over, :timeout}, socket) do
+    {:noreply,
+     socket
+     |> put_flash(:info, "Time's up! Game over.")
+     |> assign(:timer_seconds, 0)}
   end
 
   def handle_info({:player_ready_changed, player_id, ready}, socket) do
