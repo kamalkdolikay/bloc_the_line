@@ -91,32 +91,32 @@ defmodule BlocTheLineWeb.RoomLive do
 
                 board = room_state.board
 
-              # Get the player's color (1-4) to display as P1, P2, P3, P4
-              {:ok, player} = Map.fetch(room_state.players, player_id)
-              player_color = player.color || 1
+                # Get the player's color (1-4) to display as P1, P2, P3, P4 and cur piece
+                player = Map.get(room_state.players, player_id)
+                player_color = player.color || 1
+                piece_name =
+                  if player.current_piece,
+                  do: player.current_piece.name,
+                  else: nil
 
-              # Get all pieces for the MovingBlock hook
-              pieces =
-                Pieces.all()
-                |> Enum.sort_by(fn {_key, piece} -> piece.name end)
-                |> Enum.map(fn {_key, piece} ->
-                  %{
-                    name: piece.name,
-                    cells:
-                      piece.cells
-                      |> MapSet.to_list()
-                      |> Enum.map(fn {x, y} -> [x, y] end),
-                    corners:
-                      piece.corners
-                      |> MapSet.to_list()
-                      |> Enum.map(fn {x, y} -> [x, y] end),
-                    anchor: Tuple.to_list(piece.anchor)
-                  }
-                end)
-
-                # Get assigned piece for this player (our feature)
-                assigned_piece = Map.get(room_state.player_pieces || %{}, player_id)
-                player_color = get_in(room_state.players, [player_id, :color]) || 1
+                # Get all pieces for the MovingBlock hook
+                pieces =
+                  Pieces.all()
+                  |> Enum.sort_by(fn {_key, piece} -> piece.name end)
+                  |> Enum.map(fn {_key, piece} ->
+                    %{
+                      name: piece.name,
+                      cells:
+                        piece.cells
+                        |> MapSet.to_list()
+                        |> Enum.map(fn {x, y} -> [x, y] end),
+                      corners:
+                        piece.corners
+                        |> MapSet.to_list()
+                        |> Enum.map(fn {x, y} -> [x, y] end),
+                      anchor: Tuple.to_list(piece.anchor)
+                    }
+                  end)
 
                 {:ok,
                  socket
@@ -132,14 +132,9 @@ defmodule BlocTheLineWeb.RoomLive do
                  |> assign(:editing_name, false)
                  |> assign(:host_id, Map.get(room_state, :host_id))
                  |> assign(:game_started, Map.get(room_state, :game_started, false))
-                 |> assign(:player_positions, Map.get(room_state, :player_positions, %{}))
-                 |> assign(:player_corners, Map.get(room_state, :player_corners, %{}))
-                 |> assign(
-                   :my_corner,
-                   Map.get(room_state.player_corners || %{}, player_id, {0, 0})
-                 )
-                 |> assign(:last_placed_position, Map.get(room_state, :last_placed_position, nil))
-                 |> assign(:assigned_piece, assigned_piece)}
+                 |> assign(:my_corner, player.corner)     # unused
+                 |> assign(:last_placed_position, nil)
+                 |> assign(:assigned_piece, piece_name)}
 
               {:error, :room_not_found} ->
                 {:ok, socket |> put_flash(:error, "Room not found") |> push_navigate(to: ~p"/")}
@@ -193,16 +188,16 @@ defmodule BlocTheLineWeb.RoomLive do
          |> assign(:player_name, player_name)
          |> assign(:player_color, 1)
          |> assign(:players, %{})
+         |> assign(:public, false)
          |> assign(:board, board)
          |> assign(:pieces, [])
-         |> assign(:public, false)
          |> assign(:copied, false)
          |> assign(:editing_name, false)
          |> assign(:host_id, nil)
          |> assign(:game_started, false)
-         |> assign(:player_corners, %{})
          |> assign(:my_corner, {0, 0})
-         |> assign(:last_placed_position, nil)}
+         |> assign(:last_placed_position, nil)
+         |> assign(:assigned_piece, nil)}
       end
     end
   end
@@ -324,6 +319,50 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, socket}
   end
 
+
+
+  def handle_event("piece_changed", %{"piece" => piece}, socket) do
+    # TODO: this and handle_event("piece_change") do the same thing?
+    # players =
+    #   Map.update!(socket.assigns.players, player_id, fn p ->
+    #     piece = String.to_atom(piece_name) |> Pieces.get()
+    #     Player.set_current_piece(p, piece)
+    #   end)
+
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "room:#{socket.assigns.room_code}",
+      {:piece_changed, socket.assigns.player_id, piece}
+    )
+
+    # {:noreply, assign(socket, players: players)}
+    {:noreply, socket}
+  end
+
+  def handle_event("start_edit_name", _params, socket) do
+    {:noreply, assign(socket, :editing_name, true)}
+  end
+
+  def handle_event("cancel_edit_name", _params, socket) do
+    {:noreply, assign(socket, :editing_name, false)}
+  end
+
+  def handle_event("save_name", %{"new_name" => new_name}, socket) do
+    new_name = String.trim(new_name || "")
+
+    if new_name == "" do
+      {:noreply, socket}
+    else
+      case Rooms.update_player_name(socket.assigns.room_code, socket.assigns.player_id, new_name) do
+        :ok ->
+          {:noreply, assign(socket, :editing_name, false) |> assign(:player_name, new_name)}
+
+        {:error, _} ->
+          {:noreply, socket}
+      end
+    end
+  end
+
   def handle_info({:player_ready_changed, player_id, ready}, socket) do
     players =
       Map.update!(socket.assigns.players, player_id, fn player -> %{player | ready: ready} end)
@@ -331,11 +370,12 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, assign(socket, :players, players)}
   end
 
+  # TODO: prob better to change this to get the corner data from the player struct instead
   def handle_info({:game_started, player_corners}, socket) do
     my_corner = Map.get(player_corners, socket.assigns.player_id, {0, 0})
     {col, row} = my_corner
 
-    # Get the assigned piece for this player after game starts
+    # Get the assigned piece NAME for this player after game starts
     assigned_piece =
       if socket.assigns.player_id do
         Rooms.get_assigned_piece(socket.assigns.room_code, socket.assigns.player_id)
@@ -369,12 +409,12 @@ defmodule BlocTheLineWeb.RoomLive do
   # Player joined/left handlers
   def handle_info({:player_joined, player}, socket) do
     players = Map.put(socket.assigns.players, player.id, player)
-
     socket = assign(socket, :players, players)
-
     socket =
       if socket.assigns.player_id == player.id do
-        assign(socket, :player_color, Map.get(player, :color, socket.assigns.player_color || 1))
+        # Probably the default_color is not needed but Im leaving it for legacy safety
+        default_color = socket.assignns.player_color || 1
+        assign(socket, :player_color, player.color || default_color)
       else
         socket
       end
@@ -394,50 +434,12 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, assign(socket, :host_id, new_host_id)}
   end
 
-  def handle_info({:piece_changed, player_id, piece}, socket) do
+  def handle_info({:piece_changed, player_id, piece_name}, socket) do
     players =
       Map.update!(socket.assigns.players, player_id, fn p ->
-        Map.put(p, :held_piece, piece)
+        piece = String.to_atom(piece_name) |> Pieces.get()
+        Player.set_current_piece(p, piece)
       end)
-
-    {:noreply, assign(socket, players: players)}
-  end
-
-  def handle_event("piece_changed", %{"piece" => piece}, socket) do
-    players =
-      Map.update!(socket.assigns.players, socket.assigns.player_id, fn p ->
-        Map.put(p, :held_piece, piece)
-      end)
-
-    Phoenix.PubSub.broadcast(
-      BlocTheLine.PubSub,
-      "room:#{socket.assigns.room_code}",
-      {:piece_changed, socket.assigns.player_id, piece}
-    )
-
-    {:noreply, assign(socket, players: players)}
-  end
-
-  def handle_info({:piece_changed, player_id, piece}, socket) do
-    players =
-      Map.update!(socket.assigns.players, player_id, fn p ->
-        Map.put(p, :held_piece, piece)
-      end)
-
-    {:noreply, assign(socket, players: players)}
-  end
-
-  def handle_event("piece_changed", %{"piece" => piece}, socket) do
-    players =
-      Map.update!(socket.assigns.players, socket.assigns.player_id, fn p ->
-        Map.put(p, :held_piece, piece)
-      end)
-
-    Phoenix.PubSub.broadcast(
-      BlocTheLine.PubSub,
-      "room:#{socket.assigns.room_code}",
-      {:piece_changed, socket.assigns.player_id, piece}
-    )
 
     {:noreply, assign(socket, players: players)}
   end
@@ -446,6 +448,7 @@ defmodule BlocTheLineWeb.RoomLive do
     IO.inspect(player_id, label: "PIECE PLACED BY")
     IO.inspect({row, col}, label: "AT POSITION")
     IO.inspect(cells, label: "WITH CELLS")
+    IO.inspect(player_points, label: "PLAYER_SCORE")
     IO.inspect(new_board, label: "NEW BOARD")
     IO.inspect(socket.assigns.board, label: "OLD BOARD")
 
@@ -463,7 +466,7 @@ defmodule BlocTheLineWeb.RoomLive do
   end
 
   # serve player position updates to frontend
-  def handle_info({:position_updated, player_id, piece, coord, cells, anchor}, socket) do
+  def handle_info({:position_updated, player_id, piece_name, coord, cells, anchor}, socket) do
     {col, row} = coord
     player = Map.get(socket.assigns.players, player_id)
 
@@ -481,27 +484,13 @@ defmodule BlocTheLineWeb.RoomLive do
      })}
   end
 
-  # Check if all players are ready
-  defp all_ready?(players) do
-    Enum.all?(players, fn {_id, player} -> player.ready end)
-  end
 
-  # Check if all players are ready
-  defp all_ready?(players) do
-    Enum.all?(players, fn {_id, player} -> player.ready end)
-  end
-
-  def terminate(_reason, socket) do
-    if socket.assigns[:player_id],
-      do: Rooms.leave_room(socket.assigns.room_code, socket.assigns.player_id)
-
-    :ok
-  end
 
   # Handle remote player name change broadcasts
   def handle_info({:player_name_changed, player_id, new_name}, socket) do
     players =
-      Map.update(socket.assigns.players, player_id, nil, fn p -> Map.put(p, :name, new_name) end)
+      Map.update(socket.assigns.players, player_id, nil,
+        fn p -> Player.rename(p, new_name) end)
 
     socket = assign(socket, :players, players)
 
@@ -515,28 +504,15 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, socket}
   end
 
-  def handle_event("start_edit_name", _params, socket) do
-    {:noreply, assign(socket, :editing_name, true)}
+  def terminate(_reason, socket) do
+    if socket.assigns[:player_id],
+      do: Rooms.leave_room(socket.assigns.room_code, socket.assigns.player_id)
+    :ok
   end
 
-  def handle_event("cancel_edit_name", _params, socket) do
-    {:noreply, assign(socket, :editing_name, false)}
-  end
-
-  def handle_event("save_name", %{"new_name" => new_name}, socket) do
-    new_name = String.trim(new_name || "")
-
-    if new_name == "" do
-      {:noreply, socket}
-    else
-      case Rooms.update_player_name(socket.assigns.room_code, socket.assigns.player_id, new_name) do
-        :ok ->
-          {:noreply, assign(socket, :editing_name, false) |> assign(:player_name, new_name)}
-
-        {:error, _} ->
-          {:noreply, socket}
-      end
-    end
+  # Check if all players are ready
+  defp all_ready?(players) do
+    Enum.all?(players, fn {_id, player} -> player.ready end)
   end
 
   defp generate_guest_name do
