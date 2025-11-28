@@ -3,8 +3,6 @@ defmodule BlocTheLineWeb.RoomLive do
   alias BlocTheLine.Rooms
   require Logger
 
-  # TODO: NOW, FOR SOME REASON, UPDATING THE POSITION CAUSES THE PLAYERS TO RE ENTER THE SAME ROOM
-
   # Player name validation: alphanumeric, spaces, hyphens, underscores only, 1-30 chars
   defp validate_player_name(name) when is_binary(name) do
     trimmed = String.trim(name)
@@ -134,6 +132,7 @@ defmodule BlocTheLineWeb.RoomLive do
                  |> assign(:game_started, Map.get(room_state, :game_started, false))
                  |> assign(:my_corner, player.corner)     # unused
                  |> assign(:last_placed_position, nil)
+                 |> assign(:timer_seconds, Map.get(room_state, :timer_seconds, 60))
                  |> assign(:assigned_piece, piece_name)}
 
               {:error, :room_not_found} ->

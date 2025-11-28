@@ -74,6 +74,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
       monitors: %{},
       # player_id => ref to player_process (backwards map for lookup)
       player_refs: %{},
+      # Timer state
       timer_seconds: 60,
       timer_ref: nil,
       tick_ref: nil
