@@ -1,13 +1,13 @@
-<div class="min-h-screen bg-gray-100 p-8">
+<div class="min-h-screen bg-neutral-900 p-8">
   <div class="max-w-6xl mx-auto">
     <!-- Header -->
-    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+    <div class="p-6 mb-6">
       <div class="flex justify-between items-center">
         <div>
-          <h1 class="text-3xl font-bold text-gray-800">Room: {@room_code}</h1>
+          <h1 class="text-3xl font-bold">Room: {@room_code}</h1>
 
           <div class="mt-1 flex items-center gap-3">
-            <span class="text-gray-600">My name is:</span>
+            <span class="">My name is:</span>
 
             <%= if @editing_name do %>
               <form phx-submit="save_name" class="flex items-center gap-2">
@@ -16,25 +16,25 @@
                   name="new_name"
                   value={@player_name}
                   required
-                  class="border px-2 py-1 rounded bg-gray-100 text-black"
+                  class="px-2 py-1 rounded bg-neutral-800"
                 />
                 <button
                   type="submit"
-                  class="bg-blue-500 text-white px-3 py-1 rounded border border-black"
+                  class="text-sm bg-blue-700 text-white px-3 py-1 rounded border border-black hover:bg-blue-600"
                 >
                   Save
                 </button>
                 <button
                   type="button"
                   phx-click="cancel_edit_name"
-                  class="px-3 py-1 rounded border border-black bg-red-500 text-white hover:bg-red-600"
+                  class="text-sm px-3 py-1 rounded border border-black bg-red-700 hover:bg-red-600"
                 >
                   Cancel
                 </button>
               </form>
             <% else %>
               <div class="flex items-center gap-2">
-                <span class="font-semibold text-gray-800">{@player_name}</span>
+                <span class="font-semibold">{@player_name}</span>
                 <button
                   type="button"
                   phx-click="start_edit_name"
@@ -53,19 +53,19 @@
             id="copy-button"
             phx-hook="CopyToClipboard"
             data-text={url(~p"/room/#{@room_code}")}
-            class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition border border-black"
+            class="text-sm bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition"
           >
             {if @copied, do: "✓ Copied!", else: "Copy Invite Link"}
           </button>
           <button
             phx-click="toggle_public"
-            class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition border border-black"
+            class="text-sm bg-green-700 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition"
           >
             {if @public, do: "Make Private", else: "Make Public"}
           </button>
           <.link
             navigate={~p"/"}
-            class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition border border-black"
+            class="text-sm bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"
           >
             Leave Room
           </.link>
@@ -76,21 +76,21 @@
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
       <!-- Players List -->
       <div class="lg:col-span-1">
-        <div class="bg-white rounded-lg shadow-lg p-6">
-          <h2 class="text-xl font-semibold mb-4 text-gray-800">Players ({map_size(@players)})</h2>
+        <div class="p-6">
+          <h2 class="text-xl font-semibold mb-4">Players ({map_size(@players)})</h2>
           <!-- Ready Button -->
           <div class="space-y-3">
             <%= for {id, player} <- @players do %>
               <div class={
                 cond do
                   player.id == @player_id ->
-                    "flex items-center gap-3 bg-gray-50 rounded-lg p-3 border-4 shadow-md transition transform " <>
+                    "flex items-center gap-3 p-3 border-4 transition transform " <>
                       case player.color do
-                        1 -> "border-blue-400"
-                        2 -> "border-red-400"
-                        3 -> "border-green-400"
-                        4 -> "border-yellow-400"
-                        _ -> "border-gray-300"
+                        1 -> "border-blue-500"
+                        2 -> "border-red-500"
+                        3 -> "border-green-500"
+                        4 -> "border-purple-500"
+                        _ -> "border-gray-500"
                       end
 
                   true ->
@@ -109,12 +109,12 @@
                   {BlocTheLineWeb.RoomLive.get_avatar_initial(player.name)}
                 </div>
                 <div class="flex-1">
-                  <p class="font-semibold text-gray-800">
+                  <p class="font-semibold">
                     {player.name}
-                    <span class="text-sm text-gray-500">(P{player.color})</span>
+                    <span class="text-sm text-gray-400">(P{player.color})</span>
                   </p>
 
-                  <p class="text-xs text-gray-500">
+                  <p class="text-xs text-gray-400">
                     Pieces placed: {case player.color do
                       1 -> Map.get(@board.count_map, :p1, 0)
                       2 -> Map.get(@board.count_map, :p2, 0)
@@ -125,7 +125,7 @@
                   </p>
 
                   <%= if player.id == @player_id do %>
-                    <p class="text-xs text-blue-600">You</p>
+                    <p class="text-xs text-blue-500">You</p>
                   <% end %>
                   <p class="text-xs">
                     {if player.ready, do: "Ready", else: "Not Ready"}
@@ -134,7 +134,7 @@
                     <button
                       phx-click="toggle_ready"
                       phx-value-ready={"#{if player.ready == true, do: "false", else: "true"}"}
-                      class="ml-2 px-2 py-1 rounded bg-blue-500 text-white"
+                      class="ml-2 px-2 py-1 rounded bg-blue-700 text-white hover:bg-blue-600"
                     >
                       {if player.ready == true, do: "Unready", else: "Ready"}
                     </button>
@@ -146,12 +146,12 @@
             <%= if @player_id == @host_id and all_ready?(@players) and not @game_started do %>
               <button
                 phx-click="start_game"
-                class="mt-4 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg transition"
+                class="mt-4 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold transition"
               >
                 Start Game
               </button>
             <% else %>
-              <div class="mt-4 text-center text-gray-700 font-semibold">
+              <div class="mt-4 text-center font-semibold">
                 <% ready_count =
                   Enum.count(@players, fn {_id, player} -> player.ready == true end) %>
                 <% total_count = map_size(@players) %> Players Ready: {ready_count} / {total_count}
@@ -163,11 +163,11 @@
       <!-- Game Area -->
       <div class="lg:col-span-3">
         <%= if @game_started do %>
-          <div class="bg-white rounded-lg shadow-lg p-8 relative pt-20">
+          <div class="flex flex-col items-center p-8 relative pt-20">
             <!-- Wrapper so cards & board share the same positioning context -->
             <div class="inline-block mx-auto">
               
-<!-- DYNAMIC PLAYER CARDS -->
+      <!-- GAME PLAYER CARDS  -->
               <% players_list =
                 @players
                 |> Enum.sort_by(fn {_id, p} -> p.color end)
@@ -194,10 +194,7 @@
                     _ -> "/images/icons/default_wizard.png"
                   end %>
 
-                <div class={
-      "player-card absolute #{pos} m-2 bg-white/90 rounded-lg shadow-md 
-       px-3 py-2 flex items-center gap-2 z-50"
-    }>
+                <div class={"player-card absolute #{pos} m-2 px-3 py-2 flex items-center gap-2 z-50"}>
                   <img
                     src={icon}
                     alt="Player Icon"
@@ -205,17 +202,17 @@
                   />
 
                   <div class="text-xs leading-tight">
-                    <div class="font-semibold text-gray-800">
+                    <div class="font-semibold">
                       {player.name}
-                      <span class="ml-1 text-[10px] text-gray-500">(P{player.color})</span>
+                      <span class="ml-1 text-[10px]">(P{player.color})</span>
                     </div>
 
-                    <div class="text-gray-700">
-                      Score: <span class="font-semibold">{Map.get(player, :score, 0)}</span>
+                    <div class="text-gray-400">
+                      Score: {Map.get(player, :score, 0)}
                     </div>
-                      <div class="text-gray-700">
+                      <div class="text-gray-400">
                         Held:
-                        <span class="font-semibold">
+                        <span>
                         <%= BlocTheLine.Rooms.get_assigned_piece(@room_code, player.id) || "None" %>
                        </span>
                       </div>
@@ -293,22 +290,22 @@
               </div>
             </div>
 
-            <div class="mt-4 text-center text-sm text-gray-600">
+            <div class="mt-4 text-center text-sm text-gray-400">
               <p>
                 Use WASD to move | R/E to rotate | F/V to flip | SPACE to place
               </p>
               <%= if @assigned_piece do %>
-                <p class="mt-2 font-semibold text-blue-600">
+                <p class="mt-2 font-semibold text-blue-500">
                   Current Piece: {@assigned_piece}
                 </p>
               <% end %>
             </div>
           </div>
         <% else %>
-          <div class="bg-white rounded-lg shadow-lg p-8">
+          <div class="p-8">
             <div class="text-center py-12">
-              <h2 class="text-2xl font-bold text-gray-800 mb-4">Waiting for game to start...</h2>
-              <p class="text-gray-600">
+              <h2 class="text-2xl font-bold mb-4">Waiting for game to start...</h2>
+              <p class="text-gray-400">
                 The host will start the game when all players are ready.
               </p>
             </div>
