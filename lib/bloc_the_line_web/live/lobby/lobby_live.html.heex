@@ -4,26 +4,40 @@
 
     <p style="text-align: center; margin-bottom: 1.5rem;">Blokus Multiplayer</p>
 
-    <%= if @flash[:error] do %>
+    <%= if Phoenix.Flash.get(@flash, :error) do %>
       <div
         role="alert"
         style="border:1px solid #fca5a5; background:#fff1f2; color:#991b1b; padding:0.75rem; margin-bottom:1rem; border-radius:4px;"
       >
         <strong style="display:block; margin-bottom:0.25rem;">Error</strong>
-        {@flash[:error]}
+        {Phoenix.Flash.get(@flash, :error)}
       </div>
     <% end %>
 
-    <%= if @flash[:info] do %>
+    <%= if Phoenix.Flash.get(@flash, :info) do %>
       <div
         role="status"
         style="border:1px solid #bbf7d0; background:#f0fdf4; color:#14532d; padding:0.75rem; margin-bottom:1rem; border-radius:4px;"
       >
         <strong style="display:block; margin-bottom:0.25rem;">Notice</strong>
-        {@flash[:info]}
+        {Phoenix.Flash.get(@flash, :info)}
       </div>
     <% end %>
-    <!-- Public rooms list: clicking Join will prefill the lobby form and trigger browser validation -->
+    <div style="margin-bottom: 1.5rem;">
+      <form phx-change="update_player_name" style="margin-bottom: 1.5rem;">
+        <label style="display: block; margin-bottom: 0.25rem; font-weight: 500;">Your Name</label>
+        <input
+          type="text"
+          name="player_name"
+          placeholder="Enter your name to continue"
+          value={@player_name}
+          style="width: 100%; padding: 0.5rem; border: 1px solid #aaa;"
+          maxlength="30"
+          autofocus
+        />
+      </form>
+    </div>
+
     <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Public Rooms</h2>
 
     <div style="margin-bottom: 1rem;">
@@ -57,7 +71,8 @@
                   type="button"
                   title="Join as guest (or use name above)"
                   style="cursor: pointer;"
-                  class="inline-block px-2 py-1 border border-black text-sm rounded"
+                  class="w-full p-2 border border-black bg-transparent cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={String.trim(@player_name || "") == ""}
                 >
                   Join
                 </button>
@@ -72,22 +87,12 @@
       <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Create New Room</h2>
 
       <form phx-submit="create_room">
-        <input
-          type="text"
-          name="player_name"
-          placeholder="Your Name"
-          value={@player_name}
-          phx-input="update_player_name"
-          style="width: 100%; padding: 0.5rem; border: 1px solid #aaa; margin-bottom: 0.5rem;"
-          required
-          maxlength="30"
-          pattern="[a-zA-Z0-9\s\-_]+"
-          title="Letters, numbers, spaces, hyphens, and underscores only (max 30 characters)"
-          autofocus={@room_code != ""}
-        />
+        <input type="hidden" name="player_name" value={@player_name} />
         <button
           type="submit"
+          class="w-full p-2 border border-black bg-transparent cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           style="width: 100%; padding: 0.5rem; border: 1px solid #000; background: none; cursor: pointer;"
+          disabled={String.trim(@player_name || "") == ""}
         >
           Create Room
         </button>
@@ -98,19 +103,7 @@
       <h2 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Join Existing Room</h2>
 
       <form phx-submit="join_room" phx-hook="JoinRoomValidation" id="join-room-form">
-        <input
-          type="text"
-          name="player_name"
-          placeholder="Your Name"
-          value={@player_name}
-          phx-input="update_player_name"
-          autofocus={@room_code != ""}
-          required
-          maxlength="30"
-          pattern="[a-zA-Z0-9\s\-_]+"
-          title="Letters, numbers, spaces, hyphens, and underscores only (max 30 characters)"
-          style="width: 100%; padding: 0.5rem; border: 1px solid #aaa; margin-bottom: 0.5rem;"
-        />
+        <input type="hidden" name="player_name" value={@player_name} />
         <input
           type="text"
           name="room_code"
@@ -123,7 +116,9 @@
         />
         <button
           type="submit"
+          class="w-full p-2 border border-black bg-transparent cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           style="width: 100%; padding: 0.5rem; border: 1px solid #000; background: none; cursor: pointer;"
+          disabled={String.trim(@player_name || "") == ""}
         >
           Join Room
         </button>
