@@ -108,6 +108,7 @@
 .moving-block {
   /* background: rgba(220, 38, 38, 0.35); /* semi-transparent red container */
   /* border: 2px solid rgba(139, 92, 246, 0.9);  */
+  opacity: 0.5;
   box-sizing: border-box;
   z-index: 50;
   will-change: transform, width, height;
@@ -144,19 +145,27 @@ box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   color: #174caf;
 }
 
-/* Piece placement animations */
+/* Piece placement animations - shake when placement is invalid */
 @keyframes shake {
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-  20%, 40%, 60%, 80% { transform: translateX(5px); }
+  0%, 100% { transform: translate(0, 0); }
+  10%, 30%, 50%, 70%, 90% { transform: translate(-8px, -2px) rotate(-1deg); }
+  20%, 40%, 60%, 80% { transform: translate(8px, 2px) rotate(1deg); }
+}
+
+@keyframes flash-red {
+  0%, 100% { opacity: 1; }
+  25%, 75% { opacity: 0.7; filter: brightness(1.3) saturate(1.5); }
+  50% { opacity: 0.9; filter: brightness(1.5) saturate(2); }
 }
 
 .piece-placed-error {
-  animation: shake 0.5s ease-in-out;
+  animation: shake 0.5s ease-in-out, flash-red 0.5s ease-in-out;
+  z-index: 100;
 }
 
 /* BLOCKUS TILE TEXTURES */
 .blokus-tile {
-  background-image: url("/images/base_tile.png");
+  background-image: url("/images/tiles/base_tile.png");
   background-size: cover;
   background-repeat: no-repeat;
   image-rendering: pixelated; 
@@ -165,28 +174,28 @@ box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 
 /* PLAYER PIECE TEXTURES */
 .p1-tile {
-  background-image: url("/images/blue_piece.png");
+  background-image: url("/images/tiles/blue_piece.png");
   background-size: 100% 100%;
   background-repeat: no-repeat;
   image-rendering: pixelated;
 }
 
 .p2-tile {
-  background-image: url("/images/red_piece.png");
+  background-image: url("/images/tiles/red_piece.png");
   background-size: 100% 100%;
   background-repeat: no-repeat;
   image-rendering: pixelated;
 }
 
 .p3-tile {
-  background-image: url("/images/green_piece.png");
+  background-image: url("/images/tiles/green_piece.png");
   background-size: 100% 100%;
   background-repeat: no-repeat;
   image-rendering: pixelated;
 }
 
 .p4-tile {
-  background-image: url("/images/purple_piece.png");
+  background-image: url("/images/tiles/purple_piece.png");
   background-size: 100% 100%;
   background-repeat: no-repeat;
   image-rendering: pixelated;

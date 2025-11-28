@@ -1,6 +1,7 @@
 defmodule BlocTheLine.Rooms.RoomServer do
   use GenServer
   require Logger
+  alias Pieces
 
   def start_link(room_code) do
     GenServer.start_link(__MODULE__, room_code, name: via_tuple(room_code))
@@ -26,6 +27,10 @@ defmodule BlocTheLine.Rooms.RoomServer do
     GenServer.call(via_tuple(room_code), {:place_piece, player_id, row, col, cells})
   end
 
+  def update_player_name(room_code, player_id, new_name) do
+    GenServer.call(via_tuple(room_code), {:update_name, player_id, new_name})
+  end
+
   def get_board(room_code) do
     GenServer.call(via_tuple(room_code), :get_board)
   end
@@ -43,8 +48,15 @@ defmodule BlocTheLine.Rooms.RoomServer do
     GenServer.call(via_tuple(room_code), :start_game)
   end
 
-  def update_position(room_code, player_id, piece, coord) when is_tuple(coord) do
-    GenServer.call(via_tuple(room_code), {:update_position, player_id, piece, coord})
+  def update_position(room_code, player_id, piece, coord, cells, anchor) when is_tuple(coord) do
+    GenServer.call(
+      via_tuple(room_code),
+      {:update_position, player_id, piece, coord, cells, anchor}
+    )
+  end
+
+  def get_assigned_piece(room_code, player_id) do
+    GenServer.call(via_tuple(room_code), {:get_assigned_piece, player_id})
   end
 
   @impl true
@@ -70,18 +82,37 @@ defmodule BlocTheLine.Rooms.RoomServer do
 
   @impl true
   def handle_call({:join, player_name}, {from_pid, _ref} = _from, state) do
-    if map_size(state.players) >= 4 do
-      {:reply, {:error, :room_full}, state}
-    else
-      new_player = Player.new(
-        player_name,
-        state.next_player_color,
-        {0, 0},        # TODO: add that players' corner
-        DateTime.utc_now()
-      )
+    cond do
+      state.game_started ->
+        {:reply, {:error, :game_already_started}, state}
 
-      # Monitor the caller process so we can remove the player on disconnect
-      ref = Process.monitor(from_pid)
+      map_size(state.players) >= 4 ->
+        {:reply, {:error, :room_full}, state}
+
+      true ->
+        # Check for duplicate names
+        name_exists? =
+          state.players
+          |> Map.values()
+          |> Enum.any?(fn player ->
+            String.downcase(player.name) == String.downcase(player_name)
+          end)
+
+        if name_exists? do
+          {:reply, {:error, :duplicate_name}, state}
+        else
+          player_id = generate_player_id()
+          player_color = state.next_player_color
+
+          new_player = %{
+            id: player_id,
+            name: player_name,
+            color: player_color,
+            ready: false,
+            joined_at: DateTime.utc_now()
+          }
+
+          ref = Process.monitor(from_pid)
 
       Logger.debug(
         "Monitoring pid=#{inspect(from_pid)} ref=#{inspect(ref)} for player=#{new_player.id}"
@@ -108,11 +139,11 @@ defmodule BlocTheLine.Rooms.RoomServer do
           new_state
         end
 
-      Phoenix.PubSub.broadcast(
-        BlocTheLine.PubSub,
-        "room:#{state.room_code}",
-        {:player_joined, new_player}
-      )
+          Phoenix.PubSub.broadcast(
+            BlocTheLine.PubSub,
+            "room:#{state.room_code}",
+            {:player_joined, new_player}
+          )
 
       Logger.info(
         "Player #{player_name} (#{new_player.id}) joined room #{state.room_code} as color #{new_player.color}"
@@ -149,12 +180,38 @@ defmodule BlocTheLine.Rooms.RoomServer do
   # Sets the game_started variable to true to start the game
   @impl true
   def handle_call(:start_game, _from, state) do
-    new_state = %{state | game_started: true}
+    # Assign corners to players based on their colors
+    player_corners = assign_corners_to_players(state.players)
+
+    # Assign random pieces to all players
+    new_pieces =
+      state.players
+      |> Map.keys()
+      |> Enum.reduce(%{}, fn player_id, acc ->
+        random_piece = Pieces.random_starting_piece_name()
+        Map.put(acc, player_id, random_piece)
+      end)
+
+    new_state = %{
+      state
+      | game_started: true,
+        player_corners: player_corners,
+        player_pieces: new_pieces
+    }
+
+    # Broadcast piece assignments to all players
+    Enum.each(new_pieces, fn {player_id, piece_name} ->
+      Phoenix.PubSub.broadcast(
+        BlocTheLine.PubSub,
+        "room:#{state.room_code}",
+        {:piece_assigned, player_id, piece_name}
+      )
+    end)
 
     Phoenix.PubSub.broadcast(
       BlocTheLine.PubSub,
       "room:#{state.room_code}",
-      {:game_started}
+      {:game_started, player_corners}
     )
 
     {:reply, :ok, new_state}
@@ -164,7 +221,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
   def handle_call({:leave, player_id}, _from, state) do
     {player, new_players} = Map.pop(state.players, player_id)
 
-    # If the leaving player is the host, assign host_id to the next player (if any)
+    # If the leaving player is the host assign host_id to the next player (if any)
     new_host_id =
       if state.host_id == player_id do
         case Map.keys(new_players) do
@@ -219,12 +276,15 @@ defmodule BlocTheLine.Rooms.RoomServer do
         # TODO: Maybe use a function to transform into the pre chosen pieces
         piece = cells_to_piece(cells)
 
-        # Use Board.add_piece with validation
-        case Board.add_piece(state.board, piece, {col, row}, player_atom) do
+        # Use Board.add_piece with validation, passing the player's assigned corner
+        case Board.add_piece(state.board, piece, {col, row}, player_atom, player_corner) do
           {:ok, new_board} ->
+        # Assign a new random piece after successful placement
+        random_piece = Pieces.random_starting_piece_name()
+        new_pieces = Map.put(state.player_pieces, player_id, random_piece)
             new_player = Player.add_points_by_piece(player, piece)
             new_state = %{state |
-              board: new_board,
+              board: new_board, player_pieces: new_pieces,
               players: Map.replace(state.players, player_id, new_player)
             }
 
@@ -233,6 +293,12 @@ defmodule BlocTheLine.Rooms.RoomServer do
               "room:#{state.room_code}",
               {:piece_placed, player_id, row, col, cells, new_player.points, new_board}
             )
+
+        Phoenix.PubSub.broadcast(
+          BlocTheLine.PubSub,
+          "room:#{state.room_code}",
+          {:piece_assigned, player_id, random_piece}
+        )
 
             Logger.info(
               "#{player_id} (#{player_atom}) placed piece at (#{row}, #{col}) in room #{state.room_code}"
@@ -253,6 +319,52 @@ defmodule BlocTheLine.Rooms.RoomServer do
           "#{player_id} (non existent player in the room) failed to place piece at (#{row}, #{col}) - Non existent player"
         )
         {:reply, {:error, :non_existent_player}, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:update_name, player_id, new_name}, _from, state) do
+    case Map.get(state.players, player_id) do
+      nil ->
+        {:reply, {:error, :player_not_found}, state}
+
+      player ->
+        updated_player = Map.put(player, :name, new_name)
+        new_players = Map.put(state.players, player_id, updated_player)
+        new_state = %{state | players: new_players}
+
+        Phoenix.PubSub.broadcast(
+          BlocTheLine.PubSub,
+          "room:#{state.room_code}",
+          {:player_name_changed, player_id, new_name}
+        )
+
+        Logger.info("Player #{player_id} renamed to #{new_name} in room #{state.room_code}")
+
+        {:reply, :ok, new_state}
+    end
+  end
+
+  @impl true
+  def handle_call({:update_name, player_id, new_name}, _from, state) do
+    case Map.get(state.players, player_id) do
+      nil ->
+        {:reply, {:error, :player_not_found}, state}
+
+      player ->
+        updated_player = Map.put(player, :name, new_name)
+        new_players = Map.put(state.players, player_id, updated_player)
+        new_state = %{state | players: new_players}
+
+        Phoenix.PubSub.broadcast(
+          BlocTheLine.PubSub,
+          "room:#{state.room_code}",
+          {:player_name_changed, player_id, new_name}
+        )
+
+        Logger.info("Player #{player_id} renamed to #{new_name} in room #{state.room_code}")
+
+        {:reply, :ok, new_state}
     end
   end
 
@@ -284,21 +396,22 @@ defmodule BlocTheLine.Rooms.RoomServer do
   end
 
   @impl true
-  def handle_call({:update_position, player_id, piece_name, coord}, _from, state) do
-    case Map.fetch(state.players, player_id) do
-      {:ok, player} ->
-        piece = piece_name |> String.to_atom() |> Pieces.get()
-        new_player = player
-          |> Player.update_board_location(coord)
-          |> Player.set_current_piece(piece)
+  def handle_call({:update_position, player_id, piece, coord, cells, anchor}, _from, state) do
+    new_positions =
+      Map.put(state.player_positions, player_id, %{
+        piece: piece,
+        coord: coord,
+        cells: cells,
+        anchor: anchor
+      })
 
         new_state = %{state | players: Map.replace(state.players, player_id, new_player)}
 
-        Phoenix.PubSub.broadcast(
-          BlocTheLine.PubSub,
-          "room:#{state.room_code}",
-          {:position_updated, player_id, piece_name, coord}
-        )
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "room:#{state.room_code}",
+      {:position_updated, player_id, piece, coord, cells, anchor}
+    )
 
         {:reply, :ok, new_state}
 
@@ -306,6 +419,18 @@ defmodule BlocTheLine.Rooms.RoomServer do
         # Ignore errors, very frequent case
         {:reply, :ok, state}
     end
+  end
+
+  @impl true
+  def handle_call({:get_assigned_piece, player_id}, _from, state) do
+    piece_name = Map.get(state.player_pieces, player_id)
+    {:reply, piece_name, state}
+  end
+
+  @impl true
+  def handle_call({:get_assigned_piece, player_id}, _from, state) do
+    piece_name = Map.get(state.player_pieces, player_id)
+    {:reply, piece_name, state}
   end
 
   @impl true
@@ -344,11 +469,37 @@ defmodule BlocTheLine.Rooms.RoomServer do
     {:via, Registry, {BlocTheLine.RoomRegistry, room_code}}
   end
 
+  defp generate_player_id do
+    :crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false)
+  end
+
   # Convert player color (1-4) to player atom (:p1, :p2, :p3, :p4)
   defp color_to_player(1), do: :p1
   defp color_to_player(2), do: :p2
   defp color_to_player(3), do: :p3
   defp color_to_player(4), do: :p4
+
+  # Assign corners to players based on player count
+  defp assign_corners_to_players(players) do
+    player_count = map_size(players)
+
+    corners =
+      case player_count do
+        # Opposite corners for 2 players
+        2 -> [{0, 0}, {19, 19}]
+        # Three corners, avoiding one
+        3 -> [{0, 0}, {19, 0}, {0, 19}]
+        # All four corners
+        _ -> [{0, 0}, {19, 0}, {0, 19}, {19, 19}]
+      end
+
+    players
+    |> Enum.sort_by(fn {_id, player} -> player.color end)
+    |> Enum.with_index()
+    |> Enum.into(%{}, fn {{player_id, _player}, index} ->
+      {player_id, Enum.at(corners, index)}
+    end)
+  end
 
   # Convert cells from JS format to a Piece struct
   defp cells_to_piece(cells) do
