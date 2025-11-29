@@ -133,7 +133,9 @@ defmodule BlocTheLineWeb.RoomLive do
                  |> assign(:my_corner, player.corner)     # unused
                  |> assign(:last_placed_position, nil)
                  |> assign(:timer_seconds, Map.get(room_state, :timer_seconds, 60))
-                 |> assign(:assigned_piece, piece_name)}
+                 |> assign(:assigned_piece, piece_name)
+                 |> assign(:game_over, false)
+                 |> assign(:game_over_reason, nil)}
 
               {:error, :room_not_found} ->
                 {:ok, socket |> put_flash(:error, "Room not found") |> push_navigate(to: ~p"/")}
@@ -163,7 +165,9 @@ defmodule BlocTheLineWeb.RoomLive do
                 Logger.warning("Failed to join room #{inspect(room_code)}: #{inspect(reason)}")
 
                 {:ok,
-                 socket |> put_flash(:error, "Unable to join room") |> push_navigate(to: ~p"/")}
+                 socket
+                 |> put_flash(:error, "Unable to join room")
+                 |> push_navigate(to: ~p"/")}
             end
         end
       else
@@ -196,6 +200,8 @@ defmodule BlocTheLineWeb.RoomLive do
          |> assign(:game_started, false)
          |> assign(:my_corner, {0, 0})
          |> assign(:last_placed_position, nil)
+         |> assign(:game_over, false)
+         |> assign(:game_over_reason, nil)
          |> assign(:assigned_piece, nil)
          |> assign(:timer_seconds, 60)}
       end
@@ -379,6 +385,18 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, assign(socket, :players, players)}
   end
 
+  # Game-over broadcast from RoomServer
+  def handle_info({:game_over, reason}, socket) do
+    socket =
+      socket
+      |> assign(:game_over, true)
+      |> assign(:game_over_reason, reason)
+      # IMPORTANT: do NOT set :game_started to false here
+      |> push_event("game_over", %{reason: to_string(reason)})
+
+    {:noreply, socket}
+  end
+
   # TODO: prob better to change this to get the corner data from the player struct instead
   def handle_info({:game_started, player_corners}, socket) do
     my_corner = Map.get(player_corners, socket.assigns.player_id, {0, 0})
@@ -400,6 +418,9 @@ defmodule BlocTheLineWeb.RoomLive do
      # Initialize to corner
      |> assign(:last_placed_position, my_corner)
      |> assign(:assigned_piece, assigned_piece)
+     # NEW: clear any previous game-over state
+     |> assign(:game_over, false)
+     |> assign(:game_over_reason, nil)
      |> push_event("game_started", %{col: col, row: row})}
   end
 

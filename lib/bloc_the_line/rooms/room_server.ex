@@ -7,6 +7,16 @@ defmodule BlocTheLine.Rooms.RoomServer do
     GenServer.start_link(__MODULE__, room_code, name: via_tuple(room_code))
   end
 
+  # @impl true
+  def child_spec(room_code) do
+    %{
+      id: {:room, room_code},
+      start: {__MODULE__, :start_link, [room_code]},
+      restart: :temporary,
+      type: :worker
+    }
+  end
+
   def join(room_code, player_name) do
     GenServer.call(via_tuple(room_code), {:join, player_name})
   end
@@ -94,7 +104,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
         {:reply, {:error, :room_full}, state}
 
       true ->
-        # Check for duplicate names
+        # Check for duplicate names (case-insensitive)
         name_exists? =
           state.players
           |> Map.values()
@@ -192,6 +202,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
         Map.put(acc, player_id, random_piece)
       end)
 
+    # Mark game as started and store corners + pieces
     # Updates players with their corners and current piece
     new_players =
       state.players
@@ -217,6 +228,10 @@ defmodule BlocTheLine.Rooms.RoomServer do
         tick_ref: tick_ref,
         timer_ref: timer_ref
     }
+
+    # IMPORTANT: reset any existing timer (if nil, reset_timer/1 should be a no-op)
+    new_timer_ref = GameTimer.reset_timer(state.timer_ref)
+    new_state = %{new_state | timer_ref: new_timer_ref}
 
     # Broadcast piece assignments to all players (by their str names)
     Enum.each(random_pieces, fn {player_id, piece} ->
@@ -279,7 +294,13 @@ defmodule BlocTheLine.Rooms.RoomServer do
       Logger.info("Player #{player.name} left room #{state.room_code}")
     end
 
-    {:reply, :ok, new_state}
+    # If no players left, shut down this room
+    if map_size(new_players) == 0 do
+      Logger.info("Room #{state.room_code} is empty, shutting down")
+      {:stop, :normal, :ok, %{new_state | timer_ref: nil}}
+    else
+      {:reply, :ok, new_state}
+    end
   end
 
   @impl true
@@ -455,7 +476,13 @@ defmodule BlocTheLine.Rooms.RoomServer do
           Logger.info("Player #{player.name} left room #{state.room_code} (disconnect)")
         end
 
-        {:noreply, new_state}
+        # If last player disconnected, shut down this room
+        if map_size(new_players) == 0 do
+          Logger.info("Room #{state.room_code} is empty after disconnect, shutting down")
+          {:stop, :normal, %{new_state | timer_ref: nil}}
+        else
+          {:noreply, new_state}
+        end
     end
   end
 
@@ -483,9 +510,10 @@ defmodule BlocTheLine.Rooms.RoomServer do
     end
   end
 
-  # Game over timeout handler
+  # Called by GameTimer when the room's game timer expires
+  @impl true
   def handle_info(:game_over_timeout, state) do
-    Logger.info("Game over timeout reached for room #{state.room_code}")
+    Logger.info("Game over by timeout in room #{state.room_code}")
 
     Phoenix.PubSub.broadcast(
       BlocTheLine.PubSub,
@@ -493,7 +521,9 @@ defmodule BlocTheLine.Rooms.RoomServer do
       {:game_over, :timeout}
     )
 
-    {:noreply, %{state | timer_ref: nil, tick_ref: nil}}
+    new_state = %{state | timer_ref: nil}
+
+    {:noreply, new_state}
   end
 
   defp via_tuple(room_code) do
