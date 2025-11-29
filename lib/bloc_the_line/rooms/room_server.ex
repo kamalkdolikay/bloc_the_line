@@ -310,7 +310,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
         random_piece = Pieces.random_piece_name() |> Pieces.get()
         new_player =
           player
-          |> Player.add_points_by_piece(random_piece)
+          |> Player.add_points_by_piece(piece)
           |> Player.set_current_piece(random_piece)
 
         new_state = %{state |
