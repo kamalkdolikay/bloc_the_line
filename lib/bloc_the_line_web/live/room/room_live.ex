@@ -461,6 +461,12 @@ defmodule BlocTheLineWeb.RoomLive do
     IO.inspect(new_board, label: "NEW BOARD")
     IO.inspect(socket.assigns.board, label: "OLD BOARD")
 
+    players =
+      Map.update!(socket.assigns.players, player_id, fn p ->
+        %{p | points: player_points}
+      end)
+
+
     # Track last placed position for this player
     updated_socket =
       if player_id == socket.assigns.player_id do
@@ -471,7 +477,10 @@ defmodule BlocTheLineWeb.RoomLive do
         socket
       end
 
-    {:noreply, assign(updated_socket, :board, new_board)}
+      {:noreply,
+      updated_socket
+      |> assign(:board, new_board)
+      |> assign(:players, players)}
   end
 
   # serve player position updates to frontend
