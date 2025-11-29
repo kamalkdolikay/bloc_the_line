@@ -178,6 +178,24 @@
       <div class="lg:col-span-3">
         <%= if @game_started do %>
           <div class="bg-white rounded-lg shadow-lg p-8 relative pt-20">
+            <!-- Game Over Overlay -->
+            <%= if @game_over do %>
+              <div class="absolute inset-0 bg-black/60 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg shadow-xl px-8 py-6 text-center border border-black">
+                  <h2 class="text-2xl font-bold mb-2">Game Over</h2>
+                  <p class="mb-4 text-gray-700">
+                    {case @game_over_reason do
+                      :timeout -> "Time's up!"
+                      "timeout" -> "Time's up!"
+                      _ -> "The game has ended."
+                    end}
+                  </p>
+                  <p class="text-sm text-gray-500">
+                    You can stay in this room or create a new one from the lobby.
+                  </p>
+                </div>
+              </div>
+            <% end %>
             <!-- Wrapper so cards & board share the same positioning context -->
             <div class="inline-block mx-auto">
               
@@ -236,12 +254,13 @@
                     <div class="text-gray-700">
                       Score: <span class="font-semibold"><%= player.points %></span>
                     </div>
-                      <div class="text-gray-700">
-                        Held:
-                        <span class="font-semibold">
-                        <%= BlocTheLine.Rooms.get_assigned_piece(@room_code, player.id) || "None" %>
-                       </span>
-                      </div>
+
+                    <div class="text-gray-700">
+                      Held:
+                      <span class="font-semibold">
+                        {BlocTheLine.Rooms.get_assigned_piece(@room_code, player.id) || "None"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               <% end %>
