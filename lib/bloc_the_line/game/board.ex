@@ -123,7 +123,7 @@ defmodule Board do
   Returns {:ok, player} if succeeds to find a place.
   Or returns :error, if not.
   """
-  @spec get_player_from_coord(Board.t(), coordinate()) :: player()
+  @spec get_player_from_coord(Board.t(), coordinate()) :: {:ok, player()} | :error
   def get_player_from_coord(board, coord) do
     Map.fetch(board.board_map, coord)
   end

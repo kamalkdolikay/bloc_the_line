@@ -7,7 +7,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
     GenServer.start_link(__MODULE__, room_code, name: via_tuple(room_code))
   end
 
-  @impl true
+  # @impl true
   def child_spec(room_code) do
     %{
       id: {:room, room_code},
@@ -73,23 +73,21 @@ defmodule BlocTheLine.Rooms.RoomServer do
   def init(room_code) do
     state = %{
       room_code: room_code,
+      # %{player_id => Player.t()}
       players: %{},
       board: Board.new(20, 20, 4),
       created_at: DateTime.utc_now(),
       game_started: false,
-      timer_ref: nil,
       next_player_color: 1,
       public: false,
-      # ref => player_id
+      # ref to player_process => player_id
       monitors: %{},
-      # player_id => ref
+      # player_id => ref to player_process (backwards map for lookup)
       player_refs: %{},
-      # player_id => {col, row} corner assignment
-      player_corners: %{},
-      # player_id => %{piece: :F, coord: {3, 5}}
-      player_positions: %{},
-      # player_id => piece_name (e.g. "L4")
-      player_pieces: %{}
+      # Timer state
+      timer_seconds: 60,
+      timer_ref: nil,
+      tick_ref: nil
     }
 
     Logger.info("Room #{room_code} created")
@@ -117,40 +115,36 @@ defmodule BlocTheLine.Rooms.RoomServer do
         if name_exists? do
           {:reply, {:error, :duplicate_name}, state}
         else
-          player_id = generate_player_id()
-          player_color = state.next_player_color
+          new_player = Player.new(
+            player_name,
+            state.next_player_color,
+            {0, 0}, # Just a default corner
+            DateTime.utc_now()
+          )
 
-          new_player = %{
-            id: player_id,
-            name: player_name,
-            color: player_color,
-            ready: false,
-            joined_at: DateTime.utc_now()
-          }
-
-          # Monitor the caller process so we can remove the player on disconnect
           ref = Process.monitor(from_pid)
 
           Logger.debug(
-            "Monitoring pid=#{inspect(from_pid)} ref=#{inspect(ref)} for player=#{player_id}"
+            "Monitoring pid=#{inspect(from_pid)} ref=#{inspect(ref)} for player=#{new_player.id}"
           )
 
-          # record the monitor ref -> player_id and player_id -> ref so we can cleanup on DOWN
-          monitors = Map.put(state.monitors, ref, player_id)
-          player_refs = Map.put(state.player_refs, player_id, ref)
+          # record the monitor ref -> new_player.id and new_player.id -> ref so we can cleanup on DOWN
+          monitors = Map.put(state.monitors, ref, new_player.id)
+          player_refs = Map.put(state.player_refs, new_player.id, ref)
+          new_players = Map.put(state.players, new_player.id, new_player)
 
           new_state =
             state
-            |> put_in([:players, player_id], new_player)
+            |> Map.put(:players, new_players)
             # cycle the color
-            |> Map.put(:next_player_color, rem(player_color, 4) + 1)
+            |> Map.put(:next_player_color, rem(new_player.color, 4) + 1)
             |> Map.put(:monitors, monitors)
             |> Map.put(:player_refs, player_refs)
 
           # Assign host_id if this is the first player
           new_state =
             if map_size(state.players) == 0 do
-              Map.put(new_state, :host_id, player_id)
+              Map.put(new_state, :host_id, new_player.id)
             else
               new_state
             end
@@ -162,18 +156,24 @@ defmodule BlocTheLine.Rooms.RoomServer do
           )
 
           Logger.info(
-            "Player #{player_name} (#{player_id}) joined room #{state.room_code} as color #{player_color}"
+            "Player #{player_name} (#{new_player.id}) joined room #{state.room_code} as color #{new_player.color}"
           )
 
-          {:reply, {:ok, player_id}, new_state}
+          {:reply, {:ok, new_player.id}, new_state}
         end
     end
   end
 
-  # Setter the player's ready variable
+  # Set the player's ready variable
+  # ! IMPORTANT: Function only works if the user is certified to be in the room.
+  # I didn't want to dive too much into refactoring, so just a quick note
   @impl true
   def handle_call({:set_ready, player_id, ready}, _from, state) do
-    new_state = update_in(state.players[player_id].ready, fn _ -> ready end)
+    player = Map.get(state.players, player_id)
+    new_player = %Player{player | ready: ready}
+    new_state = %{state |
+      players: Map.replace(state.players, player_id, new_player)
+    }
 
     Phoenix.PubSub.broadcast(
       BlocTheLine.PubSub,
@@ -188,35 +188,57 @@ defmodule BlocTheLine.Rooms.RoomServer do
   @impl true
   def handle_call(:start_game, _from, state) do
     # Assign corners to players based on their colors
-    player_corners = assign_corners_to_players(state.players)
+    player_corners = assign_corners_to_players(state.players, state.board)
 
     # Assign random pieces to all players
-    new_pieces =
+    # Map from player_id to random_piece (Piece)
+    random_pieces =
       state.players
       |> Map.keys()
       |> Enum.reduce(%{}, fn player_id, acc ->
-        random_piece = Pieces.random_starting_piece_name()
+        random_piece =
+          Pieces.random_starting_piece_name()
+          |> Pieces.get()
         Map.put(acc, player_id, random_piece)
       end)
 
     # Mark game as started and store corners + pieces
+    # Updates players with their corners and current piece
+    new_players =
+      state.players
+      |> Map.new(fn {player_id, player} ->
+        corner = Map.get(player_corners, player_id)
+        piece = Map.get(random_pieces, player_id)
+        new_player =
+          player
+          |> Player.update_corner(corner)
+          |> Player.set_current_piece(piece)
+        {player_id, new_player}
+      end)
+
+    # Start the timer - 60 second game timer and tick every second
+    tick_ref = Process.send_after(self(), :timer_tick, 1000)
+    timer_ref = GameTimer.start_timer(60)
+
     new_state = %{
       state
-      | game_started: true,
-        player_corners: player_corners,
-        player_pieces: new_pieces
+      | players: new_players,
+        game_started: true,
+        timer_seconds: 60,
+        tick_ref: tick_ref,
+        timer_ref: timer_ref
     }
 
     # IMPORTANT: reset any existing timer (if nil, reset_timer/1 should be a no-op)
     new_timer_ref = GameTimer.reset_timer(state.timer_ref)
     new_state = %{new_state | timer_ref: new_timer_ref}
 
-    # Broadcast piece assignments to all players
-    Enum.each(new_pieces, fn {player_id, piece_name} ->
+    # Broadcast piece assignments to all players (by their str names)
+    Enum.each(random_pieces, fn {player_id, piece} ->
       Phoenix.PubSub.broadcast(
         BlocTheLine.PubSub,
         "room:#{state.room_code}",
-        {:piece_assigned, player_id, piece_name}
+        {:piece_assigned, player_id, piece.name}
       )
     end)
 
@@ -224,6 +246,13 @@ defmodule BlocTheLine.Rooms.RoomServer do
       BlocTheLine.PubSub,
       "room:#{state.room_code}",
       {:game_started, player_corners}
+    )
+
+    # Broadcast initial timer value
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "room:#{state.room_code}",
+      {:timer_update, 60}
     )
 
     {:reply, :ok, new_state}
@@ -284,33 +313,42 @@ defmodule BlocTheLine.Rooms.RoomServer do
     {:reply, Map.values(state.players), state}
   end
 
+  # ! IMPORTANT: Function only works if the user is certified to be in the room.
+  # I didn't want to dive too much into refactoring, so just a quick note
   @impl true
   def handle_call({:place_piece, player_id, row, col, cells}, _from, state) do
-    player_color = get_in(state.players, [player_id, :color]) || 1
-    player_atom = color_to_player(player_color)
-    player_corner = Map.get(state.player_corners, player_id)
+    player = Map.get(state.players, player_id)
+    player_atom = color_to_player(player.color)
 
-    # Convert cells to a Piece struct
+    # Rebuild the piece from cells because the player might have rotated it
+    # But change its name to the one from the player
     piece = cells_to_piece(cells)
 
     # Use Board.add_piece with validation, passing the player's assigned corner
-    case Board.add_piece(state.board, piece, {col, row}, player_atom, player_corner) do
+    case Board.add_piece(state.board, piece, {col, row}, player_atom, player.corner) do
       {:ok, new_board} ->
         # Assign a new random piece after successful placement
-        random_piece = Pieces.random_starting_piece_name()
-        new_pieces = Map.put(state.player_pieces, player_id, random_piece)
-        new_state = %{state | board: new_board, player_pieces: new_pieces}
+        random_piece = Pieces.random_piece_name() |> Pieces.get()
+        new_player =
+          player
+          |> Player.add_points_by_piece(random_piece)
+          |> Player.set_current_piece(random_piece)
+
+        new_state = %{state |
+          board: new_board,
+          players: Map.replace(state.players, player_id, new_player)
+        }
 
         Phoenix.PubSub.broadcast(
           BlocTheLine.PubSub,
           "room:#{state.room_code}",
-          {:piece_placed, player_id, row, col, cells, new_board}
+          {:piece_placed, player_id, row, col, cells, new_player.points, new_board}
         )
 
         Phoenix.PubSub.broadcast(
           BlocTheLine.PubSub,
           "room:#{state.room_code}",
-          {:piece_assigned, player_id, random_piece}
+          {:piece_assigned, player_id, random_piece.name}
         )
 
         Logger.info(
@@ -335,8 +373,8 @@ defmodule BlocTheLine.Rooms.RoomServer do
         {:reply, {:error, :player_not_found}, state}
 
       player ->
-        updated_player = Map.put(player, :name, new_name)
-        new_players = Map.put(state.players, player_id, updated_player)
+        renamed_player = Player.rename(player, new_name)
+        new_players = Map.put(state.players, player_id, renamed_player)
         new_state = %{state | players: new_players}
 
         Phoenix.PubSub.broadcast(
@@ -378,31 +416,36 @@ defmodule BlocTheLine.Rooms.RoomServer do
     {:reply, :ok, new_state}
   end
 
+  # ! IMPORTANT: Function only works if the user is certified to be in the room.
+  # I didn't want to dive too much into refactoring, so just a quick note
+  # TODO: remove ANCHOR from this function
   @impl true
-  def handle_call({:update_position, player_id, piece, coord, cells, anchor}, _from, state) do
-    new_positions =
-      Map.put(state.player_positions, player_id, %{
-        piece: piece,
-        coord: coord,
-        cells: cells,
-        anchor: anchor
-      })
+  def handle_call({:update_position, player_id, piece_name, coord, cells, _anchor}, _from, state) do
+    player = Map.get(state.players, player_id)
+    piece = piece_name |> String.to_atom() |> Pieces.get()
+    new_player =
+      player
+      |> Player.update_board_location(coord)
+      |> Player.set_current_piece(piece)
 
-    new_state = %{state | player_positions: new_positions}
+    new_state = %{state |
+      players: Map.replace(state.players, player_id, new_player)
+    }
 
     Phoenix.PubSub.broadcast(
       BlocTheLine.PubSub,
       "room:#{state.room_code}",
-      {:position_updated, player_id, piece, coord, cells, anchor}
+      {:position_updated, player_id, piece_name, coord, cells, piece.anchor}
     )
 
     {:reply, :ok, new_state}
   end
 
+  # Gets the piece the player is currently with
   @impl true
   def handle_call({:get_assigned_piece, player_id}, _from, state) do
-    piece_name = Map.get(state.player_pieces, player_id)
-    {:reply, piece_name, state}
+    player = Map.get(state.players, player_id)
+    {:reply, player.current_piece.name, state}
   end
 
   @impl true
@@ -443,6 +486,30 @@ defmodule BlocTheLine.Rooms.RoomServer do
     end
   end
 
+  # Timer tick handler - decrements timer and broadcasts to clients
+  def handle_info(:timer_tick, state) do
+    new_seconds = max(0, state.timer_seconds - 1)
+
+    # Broadcast the new time to all clients
+    Phoenix.PubSub.broadcast(
+      BlocTheLine.PubSub,
+      "room:#{state.room_code}",
+      {:timer_update, new_seconds}
+    )
+
+    new_state = %{state | timer_seconds: new_seconds}
+
+    if new_seconds == 0 do
+      # Timer expired - cancel tick interval
+      if state.tick_ref, do: Process.cancel_timer(state.tick_ref)
+      {:noreply, %{new_state | tick_ref: nil}}
+    else
+      # Schedule next tick
+      tick_ref = Process.send_after(self(), :timer_tick, 1000)
+      {:noreply, %{new_state | tick_ref: tick_ref}}
+    end
+  end
+
   # Called by GameTimer when the room's game timer expires
   @impl true
   def handle_info(:game_over_timeout, state) do
@@ -463,28 +530,25 @@ defmodule BlocTheLine.Rooms.RoomServer do
     {:via, Registry, {BlocTheLine.RoomRegistry, room_code}}
   end
 
-  defp generate_player_id do
-    :crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false)
-  end
-
-  # Convert player color to player atom (:p1, :p2, :p3, :p4)
+  # Convert player color (1-4) to player atom (:p1, :p2, :p3, :p4)
   defp color_to_player(1), do: :p1
   defp color_to_player(2), do: :p2
   defp color_to_player(3), do: :p3
   defp color_to_player(4), do: :p4
 
   # Assign corners to players based on player count
-  defp assign_corners_to_players(players) do
+  # Returns a map from player_id to a corner coordinate
+  defp assign_corners_to_players(players, board) do
     player_count = map_size(players)
 
     corners =
       case player_count do
         # Opposite corners for 2 players
-        2 -> [{0, 0}, {19, 19}]
+        2 -> [{0, 0}, {board.width - 1, board.height - 1}]
         # Three corners, avoiding one
-        3 -> [{0, 0}, {19, 0}, {0, 19}]
+        3 -> [{0, 0}, {board.width - 1, 0}, {0, board.height - 1}]
         # All four corners
-        _ -> [{0, 0}, {19, 0}, {0, 19}, {19, 19}]
+        _ -> [{0, 0}, {board.width - 1, 0}, {0, board.height - 1}, {board.width - 1, board.height - 1}]
       end
 
     players
@@ -496,6 +560,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
   end
 
   # Convert cells from JS format to a Piece struct
+  # ! Important: It uses a placeholder name ("custom")
   defp cells_to_piece(cells) do
     cell_set =
       cells
