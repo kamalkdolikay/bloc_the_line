@@ -366,8 +366,11 @@ defmodule BlocTheLineWeb.RoomLive do
   end
 
   def handle_info({:game_over, :timeout}, socket) do
+    players = socket.assigns.players
+    {_, winner} = Enum.max_by(players, fn {_, p} -> p.points end)
     {:noreply,
      socket
+     |> assign(:winner, winner)
      |> put_flash(:info, "Time's up! Game over.")
      |> assign(:timer_seconds, 0)}
   end
