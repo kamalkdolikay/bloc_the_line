@@ -133,7 +133,9 @@ defmodule BlocTheLineWeb.RoomLive do
                  |> assign(:my_corner, player.corner)     # unused
                  |> assign(:last_placed_position, nil)
                  |> assign(:timer_seconds, Map.get(room_state, :timer_seconds, 60))
-                 |> assign(:assigned_piece, piece_name)}
+                 |> assign(:assigned_piece, piece_name)
+                 |> assign(:winner, nil)
+                }
 
               {:error, :room_not_found} ->
                 {:ok, socket |> put_flash(:error, "Room not found") |> push_navigate(to: ~p"/")}
@@ -197,7 +199,9 @@ defmodule BlocTheLineWeb.RoomLive do
          |> assign(:my_corner, {0, 0})
          |> assign(:last_placed_position, nil)
          |> assign(:assigned_piece, nil)
-         |> assign(:timer_seconds, 60)}
+         |> assign(:timer_seconds, 60)
+         |> assign(:winner, nil)
+        }
       end
     end
   end
