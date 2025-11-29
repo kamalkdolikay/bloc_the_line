@@ -216,6 +216,9 @@
 
               <%= for {{_id, player}, idx} <- Enum.with_index(players_list) do %>
                 <% pos = Enum.at(corner_positions, idx) %>
+                
+                <% is_winner = Enum.any?(@winners, fn w -> w.id == player.id end) %>
+                <% tie? = length(@winners) > 1 %>
 
                 <% icon =
                   case player.color do
@@ -227,12 +230,18 @@
                   end %>
 
                 <div class={
-                  if @winner && @winner.id == player.id do
-                    "player-card absolute #{pos} m-2 bg-yellow-50/90 rounded-lg shadow-lg border-2 border-yellow-400 
-                     px-3 py-2 flex items-center gap-2 z-50"
-                  else
-                    "player-card absolute #{pos} m-2 bg-white/90 rounded-lg shadow-md 
-                     px-3 py-2 flex items-center gap-2 z-50"
+                  cond do
+                    @game_over and is_winner and not tie? ->
+                      "player-card absolute #{pos} m-2 bg-yellow-50/90 rounded-lg shadow-lg border-2 border-yellow-400 
+                       px-3 py-2 flex items-center gap-2 z-50"
+
+                    @game_over and is_winner and tie? ->
+                      "player-card absolute #{pos} m-2 bg-blue-50/90 rounded-lg shadow-lg border-2 border-blue-400 
+                       px-3 py-2 flex items-center gap-2 z-50"
+
+                    true ->
+                      "player-card absolute #{pos} m-2 bg-white/90 rounded-lg shadow-md 
+                       px-3 py-2 flex items-center gap-2 z-50"
                   end
                 }>
                   <img
@@ -246,9 +255,16 @@
                       {player.name}
                       <span class="ml-1 text-[10px] text-gray-500">(P{player.color})</span>
                       
-                      <%= if @winner && @winner.id == player.id do %>
-                        <span class="text-yellow-500 text-sm">👑</span>
+                      <%= if @game_over and is_winner and not tie? do %>
+                        <span class="text-yellow-500 text-sm">👑</span>                    
                       <% end %>
+
+                      <%= if @game_over and is_winner and tie? do %>
+                        <span class="text-blue-600 text-[10px] font-bold px-1 py-0.5 border border-blue-400 rounded">
+                          TIE
+                        </span>
+                      <% end %>
+
                     </div>
 
                     <div class="text-gray-700">

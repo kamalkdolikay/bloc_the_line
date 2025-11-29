@@ -136,7 +136,7 @@ defmodule BlocTheLineWeb.RoomLive do
                  |> assign(:assigned_piece, piece_name)
                  |> assign(:game_over, false)
                  |> assign(:game_over_reason, nil)
-                 |> assign(:winner, nil)
+                 |> assign(:winners, [])
                 }
 
               {:error, :room_not_found} ->
@@ -206,7 +206,7 @@ defmodule BlocTheLineWeb.RoomLive do
          |> assign(:game_over_reason, nil)
          |> assign(:assigned_piece, nil)
          |> assign(:timer_seconds, 60)
-         |> assign(:winner, nil)
+         |> assign(:winners, [])
         }
       end
     end
@@ -377,10 +377,21 @@ defmodule BlocTheLineWeb.RoomLive do
 
   def handle_info({:game_over, :timeout}, socket) do
     players = socket.assigns.players
-    {_, winner} = Enum.max_by(players, fn {_, p} -> p.points end)
+    highest_score =
+      players
+      |> Enum.map(fn {_, p} -> p.points end)
+      |> Enum.max()
+
+    winners =
+      players
+      |> Enum.filter(fn {_, p} -> p.points == highest_score end)
+      |> Enum.map(fn {_, p} -> p end)
+
     {:noreply,
      socket
-     |> assign(:winner, winner)
+     |> assign(:winners, winners)
+     |> assign(:game_over, true)
+     |> assign(:game_over_reason, :timeout)
      |> put_flash(:info, "Time's up! Game over.")
      |> assign(:timer_seconds, 0)}
   end
@@ -394,8 +405,20 @@ defmodule BlocTheLineWeb.RoomLive do
 
   # Game-over broadcast from RoomServer
   def handle_info({:game_over, reason}, socket) do
+    players = socket.assigns.players
+    highest_score =
+      players
+      |> Enum.map(fn {_, p} -> p.points end)
+      |> Enum.max()
+
+    winners =
+      players
+      |> Enum.filter(fn {_, p} -> p.points == highest_score end)
+      |> Enum.map(fn {_, p} -> p end)
+
     socket =
       socket
+      |> assign(:winners, winners)
       |> assign(:game_over, true)
       |> assign(:game_over_reason, reason)
       # IMPORTANT: do NOT set :game_started to false here
