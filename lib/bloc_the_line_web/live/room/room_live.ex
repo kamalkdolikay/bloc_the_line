@@ -135,7 +135,9 @@ defmodule BlocTheLineWeb.RoomLive do
                  |> assign(:timer_seconds, Map.get(room_state, :timer_seconds, 60))
                  |> assign(:assigned_piece, piece_name)
                  |> assign(:game_over, false)
-                 |> assign(:game_over_reason, nil)}
+                 |> assign(:game_over_reason, nil)
+                 |> assign(:winners, [])
+                }
 
               {:error, :room_not_found} ->
                 {:ok, socket |> put_flash(:error, "Room not found") |> push_navigate(to: ~p"/")}
@@ -203,7 +205,9 @@ defmodule BlocTheLineWeb.RoomLive do
          |> assign(:game_over, false)
          |> assign(:game_over_reason, nil)
          |> assign(:assigned_piece, nil)
-         |> assign(:timer_seconds, 60)}
+         |> assign(:timer_seconds, 60)
+         |> assign(:winners, [])
+        }
       end
     end
   end
@@ -372,8 +376,22 @@ defmodule BlocTheLineWeb.RoomLive do
   end
 
   def handle_info({:game_over, :timeout}, socket) do
+    players = socket.assigns.players
+    highest_score =
+      players
+      |> Enum.map(fn {_, p} -> p.points end)
+      |> Enum.max()
+
+    winners =
+      players
+      |> Enum.filter(fn {_, p} -> p.points == highest_score end)
+      |> Enum.map(fn {_, p} -> p end)
+
     {:noreply,
      socket
+     |> assign(:winners, winners)
+     |> assign(:game_over, true)
+     |> assign(:game_over_reason, :timeout)
      |> put_flash(:info, "Time's up! Game over.")
      |> assign(:timer_seconds, 0)}
   end
@@ -387,8 +405,20 @@ defmodule BlocTheLineWeb.RoomLive do
 
   # Game-over broadcast from RoomServer
   def handle_info({:game_over, reason}, socket) do
+    players = socket.assigns.players
+    highest_score =
+      players
+      |> Enum.map(fn {_, p} -> p.points end)
+      |> Enum.max()
+
+    winners =
+      players
+      |> Enum.filter(fn {_, p} -> p.points == highest_score end)
+      |> Enum.map(fn {_, p} -> p end)
+
     socket =
       socket
+      |> assign(:winners, winners)
       |> assign(:game_over, true)
       |> assign(:game_over_reason, reason)
       # IMPORTANT: do NOT set :game_started to false here
@@ -482,6 +512,12 @@ defmodule BlocTheLineWeb.RoomLive do
     IO.inspect(new_board, label: "NEW BOARD")
     IO.inspect(socket.assigns.board, label: "OLD BOARD")
 
+    players =
+      Map.update!(socket.assigns.players, player_id, fn p ->
+        %{p | points: player_points}
+      end)
+
+
     # Track last placed position for this player
     updated_socket =
       if player_id == socket.assigns.player_id do
@@ -492,7 +528,10 @@ defmodule BlocTheLineWeb.RoomLive do
         socket
       end
 
-    {:noreply, assign(updated_socket, :board, new_board)}
+      {:noreply,
+      updated_socket
+      |> assign(:board, new_board)
+      |> assign(:players, players)}
   end
 
   # serve player position updates to frontend
