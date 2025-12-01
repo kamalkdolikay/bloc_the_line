@@ -41,6 +41,10 @@ defmodule BlocTheLine.Rooms.RoomServer do
     GenServer.call(via_tuple(room_code), {:update_name, player_id, new_name})
   end
 
+  def update_player_name(room_code, seconds) do
+    GenServer.call(via_tuple(room_code), {:update_timer_seconds, seconds})
+  end
+
   def get_board(room_code) do
     GenServer.call(via_tuple(room_code), :get_board)
   end
@@ -52,6 +56,10 @@ defmodule BlocTheLine.Rooms.RoomServer do
   # For the ready function
   def set_ready(room_code, player_id, ready) do
     GenServer.call(via_tuple(room_code), {:set_ready, player_id, ready})
+  end
+
+  def update_timer_seconds(room_code, seconds) do
+    GenServer.call(via_tuple(room_code), {:update_timer_seconds, seconds})
   end
 
   def start_game(room_code) do
@@ -218,13 +226,12 @@ defmodule BlocTheLine.Rooms.RoomServer do
 
     # Start the timer - 60 second game timer and tick every second
     tick_ref = Process.send_after(self(), :timer_tick, 1000)
-    timer_ref = GameTimer.start_timer(60)
+    timer_ref = GameTimer.start_timer(state.timer_seconds)
 
     new_state = %{
       state
       | players: new_players,
         game_started: true,
-        timer_seconds: 60,
         tick_ref: tick_ref,
         timer_ref: timer_ref
     }
@@ -252,7 +259,7 @@ defmodule BlocTheLine.Rooms.RoomServer do
     Phoenix.PubSub.broadcast(
       BlocTheLine.PubSub,
       "room:#{state.room_code}",
-      {:timer_update, 60}
+      {:timer_update, new_state.timer_seconds}
     )
 
     {:reply, :ok, new_state}
@@ -387,6 +394,21 @@ defmodule BlocTheLine.Rooms.RoomServer do
 
         {:reply, :ok, new_state}
     end
+  end
+
+  @impl true
+  def handle_call({:update_timer_seconds, seconds}, _from, state) do
+        new_state = %{state | timer_seconds: seconds}
+
+        Phoenix.PubSub.broadcast(
+          BlocTheLine.PubSub,
+          "room:#{state.room_code}",
+          {:timer_update, seconds}
+        )
+
+        Logger.info("Timer set to #{seconds} seconds")
+
+        {:reply, :ok, new_state}
   end
 
   @impl true
