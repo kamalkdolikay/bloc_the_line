@@ -17,6 +17,10 @@ defmodule BlocTheLine.Rooms.RoomServer do
     }
   end
 
+  def reset(room_code) do
+    GenServer.call(via_tuple(room_code), {:reset})
+  end
+
   def join(room_code, player_name) do
     GenServer.call(via_tuple(room_code), {:join, player_name})
   end
@@ -92,6 +96,13 @@ defmodule BlocTheLine.Rooms.RoomServer do
 
     Logger.info("Room #{room_code} created")
     {:ok, state}
+  end
+
+  @impl true
+  def handle_call({:reset}, {_from_pid, _ref} = _from, state) do
+    # State change to reset board and players
+
+    {:reply,:ok, state}
   end
 
   @impl true

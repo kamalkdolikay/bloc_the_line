@@ -12,6 +12,10 @@ defmodule BlocTheLine.Rooms do
     end
   end
 
+  def reset_room(room_code) do
+    RoomServer.reset(room_code)
+  end
+
   def join_room(room_code, player_name) do
     case room_exists?(room_code) do
       true ->

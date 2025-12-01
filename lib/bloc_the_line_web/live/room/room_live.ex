@@ -212,6 +212,14 @@ defmodule BlocTheLineWeb.RoomLive do
     end
   end
 
+  # Handle new game
+  def handle_event("new_game", _params, socket) do
+    case Rooms.reset_room(socket.assigns.room_code) do
+      :ok  -> IO.puts("Game Reset")
+    end
+    {:noreply, socket}
+  end
+
   # Handle placing a piece (triggered by SPACE key)
   def handle_event("place_piece", %{"row" => row_str, "col" => col_str, "cells" => cells}, socket) do
     row = String.to_integer(row_str)
