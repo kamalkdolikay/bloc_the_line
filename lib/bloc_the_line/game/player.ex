@@ -10,37 +10,61 @@ defmodule Player do
   @type coord :: {integer(), integer()}
 
   @type t :: %__MODULE__{
+          id: binary(),     # 8 bytes uuid, should be randomly created for security (use :crypto)
           name: String.t(),
+          color: non_neg_integer(), # More like a team or player number, not exactly colour
           points: non_neg_integer(),
-          start_location: coord(),
+          corner: coord(),
           board_location: coord(),
-          current_piece: Piece.t() | nil
+          current_piece: Piece.t() | nil,
+          ready: boolean(),
+          joined_at: DateTime.t()
         }
 
   defstruct [
+    :id,
     :name,
-    :start_location,
+    :color,
+    :corner,
     :board_location,
+    :joined_at,
+    points: 0,
     current_piece: nil,
-    points: 0
+    ready: false
   ]
 
-  @doc "Create a player; board_location starts at start_location."
-  @spec new(String.t(), coord()) :: t()
-  def new(name, {x, y} = start_location)
+  @doc "Create a player; board_location starts at corner."
+  @spec new(String.t(), non_neg_integer(), coord(), DateTime.t()) :: Player.t()
+  def new(name, color, {x, y} = corner_coord, joined_at)
       when is_binary(name) and is_integer(x) and is_integer(y) do
     %Player{
+      id: :crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false),
       name: name,
-      start_location: start_location,
-      board_location: start_location
+      color: color,
+      corner: corner_coord,
+      board_location: corner_coord,
+      joined_at: joined_at
     }
   end
 
   @doc "Update avatar location on board."
   @spec update_board_location(t(), coord()) :: t()
   def update_board_location(%Player{} = player, {x, y})
-      when is_integer(x) and is_integer(y) do
+      when is_integer(x) and is_integer(y) and x >= 0 and y >= 0 do
     %Player{player | board_location: {x, y}}
+  end
+
+  @doc "Rename user to a new name."
+  @spec rename(t(), String.t()) :: t()
+  def rename(%Player{} = player, new_name) do
+    %Player{player | name: new_name}
+  end
+
+  @doc "Update starting corner location on board."
+  @spec update_corner(t(), coord()) :: t()
+  def update_corner(%Player{} = player, {x, y})
+      when is_integer(x) and is_integer(y) and x >= 0 and y >= 0 do
+    %Player{player | corner: {x, y}}
   end
 
   @doc "Set current piece (use nil to clear)."
@@ -72,13 +96,13 @@ defmodule Player do
   @spec used_first_piece?(t()) :: boolean()
   def used_first_piece?(%Player{points: points}), do: points > 0
 
-  @doc "Reset for new game; keep name/start_location."
+  @doc "Reset for new game; keep name/corner."
   @spec reset_for_new_game(t()) :: t()
   def reset_for_new_game(%Player{} = player) do
     %Player{
       player
       | points: 0,
-        board_location: player.start_location,
+        board_location: player.corner,
         current_piece: nil
     }
   end

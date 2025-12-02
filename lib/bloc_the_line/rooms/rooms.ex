@@ -12,6 +12,10 @@ defmodule BlocTheLine.Rooms do
     end
   end
 
+  def reset_room(room_code) do
+    RoomServer.reset(room_code)
+  end
+
   def join_room(room_code, player_name) do
     case room_exists?(room_code) do
       true ->
@@ -92,6 +96,10 @@ defmodule BlocTheLine.Rooms do
 
   def update_player_name(room_code, player_id, new_name) do
     RoomServer.update_player_name(room_code, player_id, new_name)
+  end
+
+  def update_timer_seconds(room_code, seconds) do
+    RoomServer.update_timer_seconds(room_code, seconds)
   end
 
   # check if the room exists using registry lookup

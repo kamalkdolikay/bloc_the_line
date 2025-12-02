@@ -35,6 +35,13 @@ const localHooks = {
   MovingBlock: {
     mounted() {
       const container = this.el;
+      this.gameOver = false;
+
+      this.handleEvent("game_over", (_payload) => {
+        this.gameOver = true;
+        blockEl.style.display = "none";
+      });
+
 
       // read grid size from data attributes
       const rows = parseInt(container.dataset.rows, 10) || 0;
@@ -354,7 +361,7 @@ const localHooks = {
       // keyboard handling: WASD or arrow keys, plus shape controls
       const keyHandler = (e) => {
         // Block input during shake animation
-        if (inputBlocked) {
+        if (inputBlocked || this.gameOver) {
           e.preventDefault();
           return;
         }
