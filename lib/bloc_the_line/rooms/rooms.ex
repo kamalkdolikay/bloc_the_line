@@ -12,6 +12,10 @@ defmodule BlocTheLine.Rooms do
     end
   end
 
+  def reset_room(room_code) do
+    RoomServer.reset(room_code)
+  end
+
   def join_room(room_code, player_name) do
     case room_exists?(room_code) do
       true ->
@@ -79,15 +83,23 @@ defmodule BlocTheLine.Rooms do
   end
 
   # updates the players position
-  def update_position(room_code, player_id, piece, coord) do
+  def update_position(room_code, player_id, piece, coord, cells, anchor) do
     case room_exists?(room_code) do
-      true -> RoomServer.update_position(room_code, player_id, piece, coord)
+      true -> RoomServer.update_position(room_code, player_id, piece, coord, cells, anchor)
       false -> {:error, :room_not_found}
     end
   end
 
   def get_board(room_code) do
     RoomServer.get_board(room_code)
+  end
+
+  def update_player_name(room_code, player_id, new_name) do
+    RoomServer.update_player_name(room_code, player_id, new_name)
+  end
+
+  def update_timer_seconds(room_code, seconds) do
+    RoomServer.update_timer_seconds(room_code, seconds)
   end
 
   # check if the room exists using registry lookup
@@ -112,5 +124,12 @@ defmodule BlocTheLine.Rooms do
 
   def start_game(room_code) do
     RoomServer.start_game(room_code)
+  end
+
+  def get_assigned_piece(room_code, player_id) do
+    case room_exists?(room_code) do
+      true -> RoomServer.get_assigned_piece(room_code, player_id)
+      false -> nil
+    end
   end
 end

@@ -89,6 +89,7 @@ defmodule BlocTheLine.BoardTest do
       z5 = Pieces.get(:Z5)
       assert {:ok, board1} = Board.add_piece(board, z5, {0, 0}, @player)
       assert {:ok, board2} = Board.add_piece(board1, z5, {3, 3}, @player)
+
       assert {:err, _} =
                Board.add_piece(board2, z5, {0, 3}, @player)
     end
@@ -103,9 +104,8 @@ defmodule BlocTheLine.BoardTest do
       newP = p |> Piece.flip(:vertical) |> Piece.rotate(:ccw)
       newL4 = l4 |> Piece.rotate(:ccw) |> Piece.flip(:vertical)
 
-      assert {:ok, board1} = Board.add_piece(board, newL4, {8,7}, @player)
-      assert {:err, _} = Board.add_piece(board, newP, {5,8}, @player)
-
+      assert {:ok, board1} = Board.add_piece(board, newL4, {8, 7}, @player)
+      assert {:err, _} = Board.add_piece(board, newP, {5, 8}, @player)
     end
   end
 end

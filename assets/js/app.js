@@ -22,7 +22,7 @@ import "phoenix_html";
 // Establish Phoenix Socket and LiveView configuration.
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
-import { hooks as colocatedHooks } from "phoenix-colocated/bloc_the_line";
+// import { hooks as colocatedHooks } from "phoenix-colocated/bloc_the_line";
 import topbar from "../vendor/topbar";
 
 const csrfToken = document
@@ -35,6 +35,13 @@ const localHooks = {
   MovingBlock: {
     mounted() {
       const container = this.el;
+      this.gameOver = false;
+
+      this.handleEvent("game_over", (_payload) => {
+        this.gameOver = true;
+        blockEl.style.display = "none";
+      });
+
 
       // read grid size from data attributes
       const rows = parseInt(container.dataset.rows, 10) || 0;
@@ -45,17 +52,170 @@ const localHooks = {
       if (!blockEl || !tileEl) return;
 
       const SHAPES = JSON.parse(container.dataset.pieces);
+      const assignedPieceName = container.dataset.assignedPiece;
 
+      // Find the index of the assigned piece, or default to 0
       let shapeIndex = 0;
+      if (assignedPieceName) {
+        const foundIndex = SHAPES.findIndex((shape) => shape.name === assignedPieceName);
+        if (foundIndex !== -1) {
+          shapeIndex = foundIndex;
+        }
+      }
+
       // current oriented cells - keep relative to anchor at [0,0]
       let oriented = SHAPES[shapeIndex].cells;
+      
+      // Helper function to update piece when assigned by server
+      const updateAssignedPiece = (pieceName) => {
+        const foundIndex = SHAPES.findIndex((shape) => shape.name === pieceName);
+        if (foundIndex !== -1) {
+          shapeIndex = foundIndex;
+          oriented = SHAPES[shapeIndex].cells;
+          renderShape(false);
+          console.log("Assigned new piece:", pieceName);
+        }
+      };
 
-      // anchor's row/col pos in tile coords
-      let anchorRow = parseInt(blockEl.dataset.row, 10) || 2;
-      let anchorCol = parseInt(blockEl.dataset.col, 10) || 2;
+      // Helper function to trigger shake animation on invalid placement
+      const triggerShakeAnimation = () => {
+        console.log("Cannot place piece here! Shaking...");
+
+        // Hide the live moving block and create a temporary animated clone child
+        // the child will be animated to indicate error, then removed
+        // don't animate the live element directly as it will mess up positioning with translate
+        blockEl.style.visibility = "hidden";
+        blockEl.style.pointerEvents = "none";
+
+        const clone = blockEl.cloneNode(true);
+        blockEl.appendChild(clone);
+        clone.classList.add("piece-placed-error");
+        clone.style.visibility = "visible";
+        clone.style.position = "absolute";
+        clone.style.transform = "translate(0, 0)";
+
+        // Block input while the shake animation runs
+        inputBlocked = true;
+
+        // Remove clone and restore original after the animation ends.
+        setTimeout(() => {
+          try { clone.remove(); } catch (e) { }
+          blockEl.style.visibility = "visible";
+          blockEl.style.pointerEvents = "";
+          // Restore input after animation finishes
+          inputBlocked = false;
+        }, 500);
+      };
+
+      // Initialize anchor position from corner or last placed position
+      // Read corner and last placed from data attributes
+      let myCorner = null;
+      let lastPlaced = null;
+
+      try {
+        myCorner = JSON.parse(container.dataset.myCorner || "null");
+        lastPlaced = JSON.parse(container.dataset.lastPlaced || "null");
+      } catch (e) {
+        console.error("Failed to parse position data:", e);
+      }
+
+      // Use last placed position if available
+      let anchorCol, anchorRow;
+      if (lastPlaced && Array.isArray(lastPlaced) && lastPlaced.length === 2) {
+        [anchorCol, anchorRow] = lastPlaced;
+      } else if (myCorner && Array.isArray(myCorner) && myCorner.length === 2) {
+        [anchorCol, anchorRow] = myCorner;
+      } else {
+        anchorCol = 2;
+        anchorRow = 2;
+      }
 
       let tileW = 0;
       let tileH = 0;
+      let inputBlocked = false;
+
+      const remotePieces = {};
+      this.remotePieces = remotePieces;
+
+      const colorFromId = (color) => {
+        switch (color) {
+          case 1:
+            return "#3b82f6";
+          case 2:
+            return "#ef4444";
+          case 3:
+            return "#22c55e";
+          case 4:
+            return "#eab308";
+          default:
+            return "#6b7280";
+        }
+      };
+
+      const renderRemotePiece = ({ player_id, piece, row, col, color, cells, anchor }) => {
+        if (!tileW || !tileH) return;
+
+        const shape = SHAPES.find((s) => s.name === piece);
+        if (!shape) return;
+
+        let el = remotePieces[player_id];
+        if (!el) {
+          el = document.createElement("div");
+          el.className = "remote-piece";
+          el.style.position = "absolute";
+          el.style.pointerEvents = "none";
+          remotePieces[player_id] = el;
+        }
+
+        if (!el.parentNode) {
+          container.appendChild(el);
+        }
+
+        const usedCells = cells || shape.cells;
+        const [anchorX, anchorY] = anchor || shape.anchor;
+
+        const xs = usedCells.map(([x]) => x);
+        const ys = usedCells.map(([, y]) => y);
+
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+
+        const shapeW = maxX - minX + 1;
+        const shapeH = maxY - minY + 1;
+
+        const anchorCellRow = row;
+        const anchorCellCol = col;
+        const anchorPixelX = anchorCellCol * tileW;
+        const anchorPixelY = anchorCellRow * tileH;
+
+        const boxPixelX = anchorPixelX - (anchorX - minX) * tileW;
+        const boxPixelY = anchorPixelY - (anchorY - minY) * tileH;
+
+        el.style.left = "0";
+        el.style.top = "0";
+        el.style.width = shapeW * tileW + "px";
+        el.style.height = shapeH * tileH + "px";
+        el.style.transform = `translate(${boxPixelX}px, ${boxPixelY}px)`;
+        el.innerHTML = "";
+
+        const fill = colorFromId(color);
+
+        usedCells.forEach(([x, y]) => {
+          const t = document.createElement("div");
+          t.className = "remote-piece-tile";
+          t.style.position = "absolute";
+          t.style.left = (x - minX) * tileW + "px";
+          t.style.top = (y - minY) * tileH + "px";
+          t.style.width = tileW + "px";
+          t.style.height = tileH + "px";
+          t.style.backgroundColor = fill;
+          t.style.opacity = "0.6";
+          t.style.borderRadius = "2px";
+          el.appendChild(t);
+        });
+      };
 
       const broadcastPosition = () => {
         this.pushEvent("update_position", {
@@ -63,8 +223,10 @@ const localHooks = {
           piece: SHAPES[shapeIndex].name,
           row: anchorRow,
           col: anchorCol,
-        })
-      }
+          cells: oriented,
+          anchor: SHAPES[shapeIndex].anchor,
+        });
+      };
 
       function bounds(cells) {
         const xs = cells.map((c) => c[0]);
@@ -151,11 +313,14 @@ const localHooks = {
           ? "transform 0.15s ease-out"
           : "none";
 
-        // render tiles...
+        // Get player color to style tiles correctly
+        const playerColor = parseInt(blockEl.dataset.playerColor, 10) || 1;
+        const playerTileClass = `p${playerColor}-tile`;
+
         blockEl.innerHTML = "";
         oriented.forEach(([x, y]) => {
           const t = document.createElement("div");
-          t.className = "moving-block-tile";
+          t.className = `moving-block-tile ${playerTileClass}`;
           t.style.position = "absolute";
           t.style.left = (x - b.minX) * tileW + "px";
           t.style.top = (y - b.minY) * tileH + "px";
@@ -183,6 +348,9 @@ const localHooks = {
         broadcastPosition();
       };
 
+      // Store renderShape as a hook property so updated() can access it
+      this.renderShape = renderShape;
+
       const measure = () => {
         const r = tileEl.getBoundingClientRect();
         tileW = Math.round(r.width);
@@ -192,6 +360,12 @@ const localHooks = {
 
       // keyboard handling: WASD or arrow keys, plus shape controls
       const keyHandler = (e) => {
+        // Block input during shake animation
+        if (inputBlocked || this.gameOver) {
+          e.preventDefault();
+          return;
+        }
+
         const key = (e.key || "").toLowerCase();
         let moved = false;
 
@@ -285,28 +459,6 @@ const localHooks = {
             }
           );
           return;
-        } else if (key === "]") {
-          // next shape
-          shapeIndex = (shapeIndex + 1) % SHAPES.length;
-          oriented = SHAPES[shapeIndex].cells;
-
-          console.log(
-            "Switched to:",
-            SHAPES[shapeIndex].name,
-            "Anchor:",
-            SHAPES[shapeIndex].anchor
-          );
-        } else if (key === "[") {
-          // prev shape
-          shapeIndex = (shapeIndex - 1 + SHAPES.length) % SHAPES.length;
-          oriented = SHAPES[shapeIndex].cells;
-
-          console.log(
-            "Switched to:",
-            SHAPES[shapeIndex].name,
-            "Anchor:",
-            SHAPES[shapeIndex].anchor
-          );
         } else if (key === " " || key === "spacebar") {
           // handle placing the piece
           e.preventDefault();
@@ -318,53 +470,16 @@ const localHooks = {
 
           const cellsRelativeToAnchor = oriented.map(([x, y]) => [x - anchorX, y - anchorY]);
 
-          const placementValid = true // TODO: actually verify with backend
+          // Send placement request to server - validation happens server-side
+          this.pushEvent("place_piece", {
+            row: anchorRow.toString(),
+            col: anchorCol.toString(),
+            cells: cellsRelativeToAnchor
+          });
 
-          if (placementValid) {
-            this.pushEvent("place_piece", {
-              row: anchorRow.toString(),
-              col: anchorCol.toString(),
-              cells: cellsRelativeToAnchor
-            });
-          } else {
-            console.log("Cannot place piece here!");
-
-            // Hide the live moving block and create a temporary animated clone child
-            // the child will be animated to indicate error, then removed
-            // don't animate the live element directly as it will mess up positioning with translate
-            blockEl.style.visibility = "hidden";
-            blockEl.style.pointerEvents = "none";
-
-            const clone = blockEl.cloneNode(true);
-            blockEl.appendChild(clone);
-            clone.classList.add("piece-placed-error");
-            clone.style.visibility = "visible";
-            clone.style.position = "absolute";
-            clone.style.transform = "translate(0, 0)";
-
-            // Block input while the shake/flash animation runs
-            inputBlocked = true;
-
-            // Remove clone and restore original after the animation ends.
-            setTimeout(() => {
-              try { clone.remove(); } catch (e) { }
-              blockEl.style.visibility = "visible";
-              blockEl.style.pointerEvents = "";
-              // Restore input after animation finishes
-              inputBlocked = false;
-            }, 500);
-          }
-
-          return;
         }
 
-        // receives other players' positions
-        this.handleEvent("position_updated", ({ player_id, piece, row, col, color }) => {
-          // TODO: render other players somehow
-          console.log(`[TODO] player ${player_id} (color ${color}): ${piece} at (${row}, ${col})`);
-        });
-
-        if (moved || ["]", "["].includes(key)) {
+        if (moved) {
           e.preventDefault();
           renderShape(moved); // sets transition only if moved
         }
@@ -379,6 +494,36 @@ const localHooks = {
       // measure initially after layout
       requestAnimationFrame(measure);
 
+      // Listen for game_started events to set initial position to assigned corner
+      this.handleEvent("game_started", ({ col, row }) => {
+        console.log(`Game started! Setting spawn position to assigned corner (${col}, ${row})`);
+        anchorCol = col;
+        anchorRow = row;
+        renderShape(false);
+      });
+
+        // Listen for piece_placed events from the server to update spawn position
+      this.handleEvent("piece_placed", ({ col, row }) => {
+        console.log(`Piece placed at (${col}, ${row}), updating spawn position`);
+        anchorCol = col;
+        anchorRow = row;
+        renderShape(false);
+      });
+
+      this.handleEvent("position_updated", (payload) => {
+        console.log("[position_updated] received:", payload);
+        renderRemotePiece(payload);
+      });
+
+      this.handleEvent("piece_assigned", ({ piece_name }) => {
+        updateAssignedPiece(piece_name);
+      });
+
+      // Handle placement errors from server - trigger shake animation
+      this.handleEvent("piece_placement_error", () => {
+        triggerShakeAnimation();
+      });
+    
       window.addEventListener("keydown", keyHandler);
 
       this.destroy = () => {
@@ -386,7 +531,28 @@ const localHooks = {
         try {
           ro.disconnect();
         } catch (e) { }
+        Object.values(remotePieces).forEach((el) => {
+          try {
+            el.remove();
+          } catch (e) { }
+        });
       };
+    },
+    updated() {
+      // Re-render the shape after LiveView updates to keep it visible and so it doesn't disappear when other players place pieces
+      if (this.renderShape) {
+        requestAnimationFrame(() => {
+          this.renderShape(false);
+        });
+      }
+
+      if (this.remotePieces) {
+        Object.values(this.remotePieces).forEach((el) => {
+          if (!el.parentNode) {
+            this.el.appendChild(el);
+          }
+        });
+      }
     },
     destroyed() {
       if (this.destroy) this.destroy()
@@ -445,13 +611,69 @@ const localHooks = {
         this.pushEvent("join_public", { room_code: room, player_name })
       })
     }
+  },
+
+  JoinRoomValidation: {
+    mounted() {
+      const form = this.el;
+      const roomCodeInput = form.querySelector('input[name="room_code"]');
+      const playerNameInput = form.querySelector('input[name="player_name"]');
+      let isValidating = false;
+      
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const roomCode = roomCodeInput.value.trim().toUpperCase();
+        const playerName = playerNameInput.value;
+        
+        console.log("Join form submitted, room code:", roomCode);
+        
+        if (!roomCode) {
+          console.log("No room code provided");
+          return;
+        }
+        
+        if (isValidating) {
+          console.log("Already validating, ignoring submission");
+          return;
+        }
+        
+        isValidating = true;
+        console.log("Checking if game has started for room:", roomCode);
+        
+        // Check with server if game has started
+        this.pushEvent("check_game_started", { room_code: roomCode }, (reply) => {
+          console.log("Server replied:", reply);
+          isValidating = false;
+          
+          if (reply.game_started) {
+            console.log("Game has started, showing validation error");
+            roomCodeInput.setCustomValidity("This game has already started. You cannot join a game in progress.");
+            roomCodeInput.reportValidity();
+            
+            // Reset custom validity when user modifies the field
+            const resetValidity = () => {
+              roomCodeInput.setCustomValidity("");
+              roomCodeInput.removeEventListener("input", resetValidity);
+            };
+            roomCodeInput.addEventListener("input", resetValidity);
+          } else {
+            console.log("Game has not started, triggering join_room event");
+            // Clear any previous custom validity and trigger the join_room event
+            roomCodeInput.setCustomValidity("");
+            this.pushEvent("join_room", { room_code: roomCode, player_name: playerName });
+          }
+        });
+      });
+    }
   }
 }
 
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: { _csrf_token: csrfToken },
-  hooks: { ...colocatedHooks, ...localHooks },
+  hooks: localHooks,
 });
 
 // Show progress bar on live navigation and form submits

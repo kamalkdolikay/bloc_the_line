@@ -1,0 +1,14 @@
+# docker-compose.yml
+version: "3.9"
+services:
+  app:
+    image: bloc_the_line
+    build: .
+    ports:
+      - "4000:4000"
+    env_file:               # ← this loads the .env file automatically
+      - .env
+    # environment:
+    #   - PHX_HOST=localhost
+    #   - SECRET_KEY_BASE=your_very_long_secret_here_from_mix_phx.gen.secret
+    #   - PORT=4000

@@ -12,20 +12,35 @@
   </div>
 
   <div class="relative flex-1 flex justify-center items-center">
-    <.player_card class="absolute top-30 left-0" name="Placeholder Name" />
-    <.player_card class="absolute top-30 right-0" name="Placeholder Name" />
-    <.player_card class="absolute bottom-30 left-0" name="Placeholder Name" />
-    <.player_card class="absolute bottom-30 right-0" name="Placeholder Name" />
-    <div
-     id="moving-block-container"
-     phx-hook="MovingBlock"
-     data-player={@current_player}   
-     data-pieces={Jason.encode!(@pieces)}
-     data-rows="20"
-     data-cols="20"
-     style="position: relative; display: inline-block;"
-    >
+    <.player_card
+      name="Blue Wizard"
+      class="absolute top-0 left-0 -translate-x-full -mt-4"
+    />
 
+    <.player_card
+      name="Red Wizard"
+      class="absolute top-0 right-0 translate-x-full -mt-4"
+    />
+
+    <.player_card
+      name="Green Wizard"
+      class="absolute bottom-0 left-0 -translate-x-full -mt-4"
+    />
+
+    <.player_card
+      name="Purple Wizard"
+      class="absolute bottom-0 right-0 translate-x-full -mt-4"
+    />
+
+    <div
+      id="moving-block-container"
+      phx-hook="MovingBlock"
+      data-player={@current_player}
+      data-pieces={Jason.encode!(@pieces)}
+      data-rows="20"
+      data-cols="20"
+      style="position: relative; display: inline-block;"
+    >
       <.blokus_board board={@board} />
       <div class="moving-block" data-row="0" data-col="0"></div>
       <!-- leave in for use with JS measurements -->
