@@ -387,13 +387,16 @@ defmodule BlocTheLineWeb.RoomLive do
       |> Enum.filter(fn {_, p} -> p.points == highest_score end)
       |> Enum.map(fn {_, p} -> p end)
 
-    {:noreply,
-     socket
+    socket =
+      socket
      |> assign(:winners, winners)
      |> assign(:game_over, true)
      |> assign(:game_over_reason, :timeout)
      |> put_flash(:info, "Time's up! Game over.")
-     |> assign(:timer_seconds, 0)}
+     |> assign(:timer_seconds, 0)
+     |> push_event("game_over", %{reason: "timeout"})
+
+    {:noreply, socket}
   end
 
   def handle_info({:player_ready_changed, player_id, ready}, socket) do
