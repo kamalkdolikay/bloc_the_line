@@ -57,7 +57,9 @@
           >
             {if @copied, do: "✓ Copied!", else: "Copy Invite"}
           </button>
+
           <button
+            :if={not @game_started}
             phx-click="toggle_public"
             class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition border border-black"
           >
@@ -147,7 +149,8 @@
                   <p class="text-xs">
                     {if player.ready, do: "Ready", else: "Not Ready"}
                   </p>
-                  <%= if id == @player_id do %>
+
+                  <%= if id == @player_id and not @game_started do %>
                     <button
                       phx-click="toggle_ready"
                       phx-value-ready={"#{if player.ready == true, do: "false", else: "true"}"}
