@@ -159,6 +159,20 @@
                 </div>
               </div>
             <% end %>
+
+            <%= if @player_id == @host_id and not @game_started do %>
+              <div class="flex flex-col gap-2 text-black">
+                <%= for seconds <- [1, 30, 60, 90] do %>
+                  <button
+                    phx-click="update_timer_seconds"
+                    phx-value-seconds={seconds}
+                    class={"cursor-pointer border-2 border-black rounded " <> if @timer_seconds == seconds, do: "bg-blue-500 text-white", else: ""}
+                  >
+                    {seconds} seconds
+                  </button>
+                <% end %>
+              </div>
+            <% end %>
             <!-- Game Start Button -->
             <%= if @player_id == @host_id and all_ready?(@players) and not @game_started do %>
               <button

@@ -363,6 +363,14 @@ defmodule BlocTheLineWeb.RoomLive do
     {:noreply, assign(socket, :editing_name, false)}
   end
 
+  def handle_event("update_timer_seconds", %{"seconds" => seconds}, socket) do
+    # Convert seconds from string to integer
+    seconds = String.to_integer(seconds)
+    Rooms.update_timer_seconds(socket.assigns.room_code, seconds)
+    {:noreply, assign(socket, timer_seconds: seconds)}
+  end
+
+
   def handle_event("save_name", %{"new_name" => new_name}, socket) do
     new_name = String.trim(new_name || "")
 
