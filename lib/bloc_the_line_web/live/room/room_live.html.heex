@@ -55,7 +55,7 @@
             data-text={url(~p"/room/#{@room_code}")}
             class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition border border-black"
           >
-            {if @copied, do: "✓ Copied!", else: "Copy Invite Link"}
+            {if @copied, do: "✓ Copied!", else: "Copy Invite"}
           </button>
           <button
             phx-click="toggle_public"
@@ -67,22 +67,25 @@
             navigate={~p"/"}
             class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition border border-black"
           >
-            Leave Room
+            Leave
           </.link>
         </div>
       </div>
     </div>
-
-    <!-- Timer Display -->
+    
+<!-- Timer Display -->
     <%= if @game_started do %>
       <div class="bg-white rounded-lg shadow-lg p-4 mb-6 text-center">
         <div class="text-2xl font-bold text-gray-800">
-          Time Remaining: <span class={[
+          Time Remaining:
+          <span class={[
             "font-mono",
             @timer_seconds <= 10 && "text-red-600",
             @timer_seconds > 10 && @timer_seconds <= 30 && "text-yellow-600",
             @timer_seconds > 30 && "text-green-600"
-          ]}>{@timer_seconds}s</span>
+          ]}>
+            {@timer_seconds}s
+          </span>
         </div>
       </div>
     <% end %>
@@ -188,11 +191,73 @@
                       :timeout -> "Time's up!"
                       "timeout" -> "Time's up!"
                       _ -> "The game has ended."
-                    end}
+                    end} 60
                   </p>
-                  <p class="text-sm text-gray-500">
+
+                  <% players_list =
+                    @players
+                    |> Enum.sort_by(fn {_id, p} -> p.color end) %>
+
+                  <%= for {{_id, player}, idx} <- Enum.with_index(players_list) do %>
+                    <% is_winner = Enum.any?(@winners, fn w -> w.id == player.id end) %>
+                    <% tie? = length(@winners) > 1 %>
+                    <% icon =
+                      case player.color do
+                        1 -> "/images/icons/blue_wizard.png"
+                        2 -> "/images/icons/red_wizard.png"
+                        3 -> "/images/icons/green_wizard.png"
+                        4 -> "/images/icons/purple_wizard.png"
+                        _ -> "/images/icons/default_wizard.png"
+                      end %>
+                    <%= if @game_over and is_winner and not tie? do %>
+                      <div class="flex flex-col items-center">
+                        <span>Winner</span>
+                        <img src={icon} />
+                        <div class="text-black">{player.name}</div>
+                      </div>
+                    <% end %>
+                    <%= if @game_over and tie? and idx == 0 do %>
+                      <div class="flex flex-col items-center">
+                        <span>Tie!</span>
+                        <div class="flex flex-col gap-2 mt-2">
+                          <%= for w <- @winners do %>
+                            <% winner_icon =
+                              case w.color do
+                                1 -> "/images/icons/blue_wizard.png"
+                                2 -> "/images/icons/red_wizard.png"
+                                3 -> "/images/icons/green_wizard.png"
+                                4 -> "/images/icons/purple_wizard.png"
+                                _ -> "/images/icons/default_wizard.png"
+                              end %>
+
+                            <div class="flex flex-col items-center">
+                              <img src={winner_icon} class="h-10 w-10" />
+                              <div class="text-black">{w.name}</div>
+                            </div>
+                          <% end %>
+                        </div>
+                      </div>
+                    <% end %>
+                  <% end %>
+                  <p class="text-sm text-gray-500 mb-10">
                     You can stay in this room or create a new one from the lobby.
                   </p>
+
+                  <div class="flex flex-col gap-5 items-center">
+                    <.link
+                      phx-click="new_game"
+                      class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition border border-black"
+                    >
+                      New Game
+                    </.link>
+
+                    <.link
+                      navigate={~p"/"}
+                      class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition border border-black"
+                    >
+                      Leave
+                    </.link>
+                  </div>
                 </div>
               </div>
             <% end %>
@@ -216,7 +281,7 @@
 
               <%= for {{_id, player}, idx} <- Enum.with_index(players_list) do %>
                 <% pos = Enum.at(corner_positions, idx) %>
-                
+
                 <% is_winner = Enum.any?(@winners, fn w -> w.id == player.id end) %>
                 <% tie? = length(@winners) > 1 %>
 
@@ -247,16 +312,16 @@
                   <img
                     src={icon}
                     alt="Player Icon"
-                    class="w-10 h-10 object-contain shadow"
+                    class="w-10 h-10 object-contain"
                   />
 
                   <div class="text-xs leading-tight">
                     <div class="font-semibold text-gray-800">
                       {player.name}
                       <span class="ml-1 text-[10px] text-gray-500">(P{player.color})</span>
-                      
+
                       <%= if @game_over and is_winner and not tie? do %>
-                        <span class="text-yellow-500 text-sm">👑</span>                    
+                        <span class="text-yellow-500 text-sm">👑</span>
                       <% end %>
 
                       <%= if @game_over and is_winner and tie? do %>
@@ -264,11 +329,10 @@
                           TIE
                         </span>
                       <% end %>
-
                     </div>
 
                     <div class="text-gray-700">
-                      Score: <span class="font-semibold"><%= player.points %></span>
+                      Score: <span class="font-semibold">{player.points}</span>
                     </div>
 
                     <div class="text-gray-700">
